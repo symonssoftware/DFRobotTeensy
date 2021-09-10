@@ -7,8 +7,7 @@
  **************************************************************/
 void setup() 
 { 
-  Serial.begin(9600);
-  //while(!Serial);
+  Serial.begin(115200);
 
   motorControlSetup();
   controllerHandlingSetup();

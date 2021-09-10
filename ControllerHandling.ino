@@ -35,9 +35,9 @@ static int sBusPacketsLost = 0;
 void controllerHandlingSetup()
 {
   //The SBUS is a non standard baud rate of 100 kbs
-  Serial1.begin(100000, SERIAL_8E2);
+  Serial4.begin(100000, SERIAL_8E2);
   // put your setup code here, to run once:
-  Serial1.flush();
+  Serial4.flush();
 }
 
 /**************************************************************
@@ -58,9 +58,9 @@ void processControllerData()
   byte nextSBusByte;
 
   //Check the SBus serial port for incoming SBus data
-  if (Serial1.available ())
+  if (Serial4.available ())
   {
-    nextSBusByte = Serial1.read ();
+    nextSBusByte = Serial4.read ();
     //handle drive motors is called from inside processControllerData();
     //This is a new package and it's not the first byte then it's probably the start byte B11110000 (sent MSB)
     //so start reading the 25 byte packet
@@ -127,7 +127,7 @@ void processSBusBuffer()
     Serial.println(channels[7]);
     Serial.print("CH8: ");
     Serial.println(channels[8]);
- */ 
+ */
   // Check for signal loss
   if ((sBusBuffer[23] >> 2) & 0x0001)
   {
