@@ -87,5 +87,9 @@ void ros2HandlerSetup()
  **************************************************************/
 void ros2HandlerLoop() 
 {
-  RCCHECK(rclc_executor_spin_some(&executor, RCL_MS_TO_NS(1)));
+  while(1) 
+  {
+    RCCHECK(rclc_executor_spin_some(&executor, RCL_MS_TO_NS(100)));
+    delay(100);
+  }
 }
