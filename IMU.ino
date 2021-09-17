@@ -3,18 +3,18 @@
 
   https://lastminuteengineers.com/mpu6050-accel-gyro-arduino-tutorial/
   **************************************************************/
-#include <Adafruit_MPU6050.h>
+/*#include <Adafruit_MPU6050.h>
 #include <Adafruit_Sensor.h>
 #include <Wire.h>
 
-Adafruit_MPU6050 mpu;
+Adafruit_MPU6050 mpu;*/
 
 /**************************************************************
    imuSetup()
  **************************************************************/
 void imuSetup()
 {
-  while (!Serial);
+/*  while (!Serial);
   
   // Try to initialize!
   if (!mpu.begin()) 
@@ -35,7 +35,7 @@ void imuSetup()
   // set filter bandwidth to 21 Hz
   mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
 
-  delay(100);
+  delay(100);*/
 }
 
 /**************************************************************
@@ -43,11 +43,12 @@ void imuSetup()
  **************************************************************/
 void imuLoop()
 {
-/* Get new sensor events with the readings */
+  /*
+  // Get new sensor events with the readings 
   sensors_event_t a, g, temp;
   mpu.getEvent(&a, &g, &temp);
 
-  /* Print out the values */
+  // Print out the values 
   Serial.print("Acceleration X: ");
   Serial.print(a.acceleration.x);
   Serial.print(", Y: ");
@@ -70,4 +71,5 @@ void imuLoop()
 
   Serial.println("");
   delay(500);
+  */
 }
