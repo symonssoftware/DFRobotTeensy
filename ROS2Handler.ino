@@ -46,7 +46,7 @@ void error_loop()
 void subscription_callback(const void * msgin)
 {  
   const std_msgs__msg__Int32 * msg = (const std_msgs__msg__Int32 *)msgin;
-  digitalWrite(LED_PIN, (msg->data == 0) ? LOW : HIGH);  
+ 
   robotState = msg->data;
 }
 
@@ -87,6 +87,5 @@ void ros2HandlerSetup()
  **************************************************************/
 void ros2HandlerLoop() 
 {
-  //delay(100);
-  RCCHECK(rclc_executor_spin_some(&executor, RCL_MS_TO_NS(100)));
+  RCCHECK(rclc_executor_spin_some(&executor, RCL_MS_TO_NS(1)));
 }

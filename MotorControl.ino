@@ -51,13 +51,7 @@ void motorControlSetup()
  **************************************************************/
 void motorControlLoop()
 {
-  /*
-  Serial.print("Pulse Left: ");
-  Serial.print(leftEncoderDuration);
-  Serial.print(" Pulse Right: ");
-  Serial.println(rightEncoderDuration);
-  delay(10);
-  */
+  // Do nothing for now ...
 }
 
 /**************************************************************
@@ -252,13 +246,6 @@ void handleDriveMotors()
 
   int right = (tempRight + tempLeft) / 2;
   int left = (tempRight - tempLeft) / 2;
-  
-  /*
-  Serial.print("Left: ");
-  Serial.print(left);
-  Serial.print(", Right: ");
-  Serial.println(right);
-  */
   
   if ((left > MOTOR_DEADBAND) && (left <= MAX_MOTOR_SPEED))
   {
