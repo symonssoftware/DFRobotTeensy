@@ -3,7 +3,7 @@
  **************************************************************/
 
 // Need to run the microagent on the host computer (e.g., Raspberry Pi) to communicate with this node
-// $ros2 run micro_ros_agent micro_ros_agent serial --dev/ttyACM0
+// $ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/ttyACM0
 
 #include <micro_ros_arduino.h>
 
@@ -36,7 +36,8 @@ void error_loop()
 {
   while(1){
     digitalWrite(LED_PIN, !digitalRead(LED_PIN));
-    delay(100);
+    SCB_AIRCR = 0x05FA0004; // Reset the Teensy (need to do this after Pi power up)
+    delay(2000);
   }
 }
 
