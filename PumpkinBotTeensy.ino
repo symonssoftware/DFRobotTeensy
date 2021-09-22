@@ -15,11 +15,13 @@ int robotState = ROBOT_STATE_DISABLED;
  **************************************************************/
 void setup()
 {
+  //Serial.begin(9600);
+
   ros2HandlerSetup();
   motorControlSetup();
   controllerHandlingSetup();
-  //imuSetup();
-  
+  imuSetup();
+
   threads.addThread(ros2HandlerLoop);
 }
 
@@ -27,20 +29,22 @@ void setup()
    loop()
  **************************************************************/
 void loop()
-{ 
+{  
   switch (robotState)
   {
     case ROBOT_STATE_DISABLED:
+      imuLoop();
       stopMotors();
       break;
 
     case ROBOT_STATE_TELEOP_ENABLED:
+      imuLoop();
       controllerHandlingLoop();
       break;
 
     case ROBOT_STATE_AUTONOMOUS_ENABLED:
-      //imuLoop();
-       break;
+      imuLoop();
+      break;
 
     default:
       stopMotors();

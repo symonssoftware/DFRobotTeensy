@@ -1,41 +1,23 @@
 /**************************************************************
    IMU
-
-  https://lastminuteengineers.com/mpu6050-accel-gyro-arduino-tutorial/
   **************************************************************/
-/*#include <Adafruit_MPU6050.h>
-#include <Adafruit_Sensor.h>
 #include <Wire.h>
+#include <JY901.h>
 
-Adafruit_MPU6050 mpu;*/
+const unsigned long imuEventInterval = 100;
+unsigned long imuPreviousTime = 0;
+float zAxis = 0.0;
 
 /**************************************************************
    imuSetup()
  **************************************************************/
 void imuSetup()
 {
-/*  while (!Serial);
-  
-  // Try to initialize!
-  if (!mpu.begin()) 
-  {
-    Serial.println("Failed to find MPU6050 chip");
-    
-    delay(1000);
-  }
-  
-  Serial.println("MPU6050 Found!");
+  Serial3.begin(115200);
 
-  // set accelerometer range to +-8G
-  mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
-
-  // set gyro range to +- 500 deg/s
-  mpu.setGyroRange(MPU6050_RANGE_2000_DEG);
-
-  // set filter bandwidth to 21 Hz
-  mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
-
-  delay(100);*/
+  // Initialize Z-axis to 0
+  char angleInitCmdString[3] = {0xff, 0xaa, 0x52};
+  Serial3.write(angleInitCmdString);
 }
 
 /**************************************************************
@@ -43,33 +25,19 @@ void imuSetup()
  **************************************************************/
 void imuLoop()
 {
-  /*
-  // Get new sensor events with the readings 
-  sensors_event_t a, g, temp;
-  mpu.getEvent(&a, &g, &temp);
+  unsigned long currentTime = millis();
 
-  // Print out the values 
-  Serial.print("Acceleration X: ");
-  Serial.print(a.acceleration.x);
-  Serial.print(", Y: ");
-  Serial.print(a.acceleration.y);
-  Serial.print(", Z: ");
-  Serial.print(a.acceleration.z);
-  Serial.println(" m/s^2");
+  if (currentTime - imuPreviousTime >= imuEventInterval)
+  {
+    imuPreviousTime = currentTime;
 
-  Serial.print("Rotation X: ");
-  Serial.print(g.gyro.x);
-  Serial.print(", Y: ");
-  Serial.print(g.gyro.y);
-  Serial.print(", Z: ");
-  Serial.print(g.gyro.z);
-  Serial.println(" rad/s");
+    while (Serial3.available())
+    {
+      JY901.CopeSerialData(Serial3.read());
+    }
 
-  Serial.print("Temperature: ");
-  Serial.print(temp.temperature);
-  Serial.println(" degC");
-
-  Serial.println("");
-  delay(500);
-  */
+    zAxis = (float)JY901.stcAngle.Angle[2] / 32768 * 180;
+    //Serial.print("Z-Axis: ");
+    //Serial.println(zAxis);
+  }
 }

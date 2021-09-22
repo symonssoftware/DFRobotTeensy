@@ -14,39 +14,64 @@
 #include <rclc/executor.h>
 
 #include <std_msgs/msg/int32.h>
+#include <std_msgs/msg/float32.h>
 
-rcl_subscription_t subscriber;
-std_msgs__msg__Int32 msg;
+rcl_subscription_t robotStateSubscriber;
+rcl_publisher_t imuZAxisPublisher;
+
+std_msgs__msg__Int32 robotStateMsg;
+std_msgs__msg__Float32 imuZAxisMsg;
+
 rclc_executor_t executor;
 rclc_support_t support;
 rcl_allocator_t allocator;
 rcl_node_t node;
-rcl_timer_t timer;
+rcl_timer_t imuZAxisPublisherTimer;
 
 #define LED_PIN 13
 
-#define RCCHECK(fn) { rcl_ret_t temp_rc = fn; if((temp_rc != RCL_RET_OK)){error_loop();}}
+#define RCCHECK(fn) { rcl_ret_t temp_rc = fn; if((temp_rc != RCL_RET_OK)){errorLoop();}}
 #define RCSOFTCHECK(fn) { rcl_ret_t temp_rc = fn; if((temp_rc != RCL_RET_OK)){}}
 
 
 /**************************************************************
-   error_loop()
+   errorLoop()
  **************************************************************/
-void error_loop()
+void errorLoop()
 {
   while(1){
     digitalWrite(LED_PIN, !digitalRead(LED_PIN));
-    SCB_AIRCR = 0x05FA0004; // Reset the Teensy (need to do this after Pi power up)
+    
+    // Reset the Teensy (need to do this after Pi power up to help keep ROS communications going)
+    SCB_AIRCR = 0x05FA0004; 
+    
     delay(2000);
   }
 }
 
+// For some reason, without this duplicate method definition, the dumb-ass
+// Arduino compiler wouldn't not do it's job.
+void imuZaxisTimerCallback(rcl_timer_t *timer, int64_t last_call_time);
 /**************************************************************
-   subscription_callback()
+   imuZaxisTimerCallback()
  **************************************************************/
-void subscription_callback(const void * msgin)
+void imuZaxisTimerCallback(rcl_timer_t *timer, int64_t last_call_time)
 {  
-  const std_msgs__msg__Int32 * msg = (const std_msgs__msg__Int32 *)msgin;
+  RCLC_UNUSED(last_call_time);
+  
+  if (timer != NULL) 
+  {
+    imuZAxisMsg.data = zAxis;
+    RCSOFTCHECK(rcl_publish(&imuZAxisPublisher, &imuZAxisMsg, NULL));
+  }
+}
+
+/**************************************************************
+   robotStateSubscriptionCallback()
+ **************************************************************/
+void robotStateSubscriptionCallback(const void * msgin)
+{  
+  const std_msgs__msg__Int32 *msg = (const std_msgs__msg__Int32 *)msgin;
  
   robotState = msg->data;
 }
@@ -73,14 +98,33 @@ void ros2HandlerSetup()
 
   // create subscriber
   RCCHECK(rclc_subscription_init_default(
-    &subscriber,
+    &robotStateSubscriber,
     &node,
     ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Int32),
-    "micro_ros_arduino_subscriber"));
+    "micro_ros_arduino_robot_state_subscriber"));
+
+  // create publisher
+  RCCHECK(rclc_publisher_init_default(
+    &imuZAxisPublisher,
+    &node,
+    ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Float32),
+    "micro_ros_arduino_imu_zaxis_publisher"));
+
+  // create timer,
+  const unsigned int timer_timeout = 1000;
+  RCCHECK(rclc_timer_init_default(
+    &imuZAxisPublisherTimer,
+    &support,
+    RCL_MS_TO_NS(timer_timeout),
+    imuZaxisTimerCallback));
 
   // create executor
-  RCCHECK(rclc_executor_init(&executor, &support.context, 1, &allocator));
-  RCCHECK(rclc_executor_add_subscription(&executor, &subscriber, &msg, &subscription_callback, ON_NEW_DATA));
+  // The "2" in the init call below is because we have a timer and a subscriber.
+  RCCHECK(rclc_executor_init(&executor, &support.context, 2, &allocator));
+  RCCHECK(rclc_executor_add_timer(&executor, &imuZAxisPublisherTimer));
+  RCCHECK(rclc_executor_add_subscription(&executor, &robotStateSubscriber, &robotStateMsg, &robotStateSubscriptionCallback, ON_NEW_DATA));
+ 
+  imuZAxisMsg.data = 0.0;
 }
 
 /**************************************************************
