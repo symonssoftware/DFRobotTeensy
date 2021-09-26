@@ -101,14 +101,14 @@ void ros2HandlerSetup()
             &robotStateSubscriber,
             &node,
             ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Int32),
-            "micro_ros_arduino_robot_state_subscriber"));
+            "robot_state"));
 
   // create publisher
   RCCHECK(rclc_publisher_init_default(
             &imuZAxisPublisher,
             &node,
             ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Float32),
-            "micro_ros_arduino_imu_zaxis_publisher"));
+            "imu_zaxis"));
 
   // create timer,
   const unsigned int timer_timeout = 1000;
