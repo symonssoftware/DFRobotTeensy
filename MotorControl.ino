@@ -16,9 +16,9 @@ static const int RIGHT_MOTOR_ENCODER_B_PIN = 38;
 static const int DRIVE_SPEED = 200; //255 is max;
 static const int TURN_SPEED = 200;
 
-static const int MAX_MOTOR_SPEED = 255;
+static const int MAX_MOTOR_SPEED = 220;
 static const int MIN_MOTOR_SPEED = 0;
-static const int MOTOR_DEADBAND = 30;
+static const int MOTOR_DEADBAND = 10;
 
 byte leftEncoderPinALast;
 byte rightEncoderPinALast;
@@ -36,6 +36,11 @@ void motorControlSetup()
 {
   pinMode(LEFT_MOTOR_SPEED_CTRL_PIN, OUTPUT);
   pinMode(RIGHT_MOTOR_SPEED_CTRL_PIN, OUTPUT);
+
+  // Need to increase the PWM frequency beyond the audible
+  // range to get rid of the annoying "whine"
+  analogWriteFrequency(LEFT_MOTOR_SPEED_CTRL_PIN, 12500);
+  analogWriteFrequency(RIGHT_MOTOR_SPEED_CTRL_PIN, 12500);
   
   pinMode(LEFT_MOTOR_DIRECTION_CTRL_PIN, OUTPUT);
   pinMode(RIGHT_MOTOR_DIRECTION_CTRL_PIN, OUTPUT);

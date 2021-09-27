@@ -111,7 +111,7 @@ void ros2HandlerSetup()
             "imu_zaxis"));
 
   // create timer,
-  const unsigned int timer_timeout = 1000;
+  const unsigned int timer_timeout = 250;
   RCCHECK(rclc_timer_init_default(
             &imuZAxisPublisherTimer,
             &support,
