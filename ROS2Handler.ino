@@ -15,24 +15,29 @@
 
 #include <std_msgs/msg/int32.h>
 #include <std_msgs/msg/float32.h>
+#include <sensor_msgs/msg/imu.h>
 
 rcl_subscription_t robotStateSubscriber;
 rcl_publisher_t imuZAxisPublisher;
+rcl_publisher_t imuMsgPublisher;
 
 std_msgs__msg__Int32 robotStateMsg;
 std_msgs__msg__Float32 imuZAxisMsg;
+sensor_msgs__msg__Imu imuMsg;
 
 rclc_executor_t executor;
 rclc_support_t support;
 rcl_allocator_t allocator;
 rcl_node_t node;
 rcl_timer_t imuZAxisPublisherTimer;
+rcl_timer_t imuMsgPublisherTimer;
 
 #define LED_PIN 13
 
 #define RCCHECK(fn) { rcl_ret_t temp_rc = fn; if((temp_rc != RCL_RET_OK)){errorLoop();}}
 #define RCSOFTCHECK(fn) { rcl_ret_t temp_rc = fn; if((temp_rc != RCL_RET_OK)){}}
 
+extern "C" int clock_gettime(clockid_t unused, struct timespec *tp);
 
 /**************************************************************
    errorLoop()
@@ -65,6 +70,47 @@ void imuZaxisTimerCallback(rcl_timer_t *timer, int64_t last_call_time)
     RCSOFTCHECK(rcl_publish(&imuZAxisPublisher, &imuZAxisMsg, NULL));
   }
 }
+
+// For some reason, without this duplicate method definition, the dumb-ass
+// Arduino compiler wouldn't not do it's job.
+void imuMsgTimerCallback(rcl_timer_t *timer, int64_t last_call_time);
+/**************************************************************
+   imuMsgTimerCallback()
+ **************************************************************/
+void imuMsgTimerCallback(rcl_timer_t *timer, int64_t last_call_time)
+{
+  RCLC_UNUSED(last_call_time);
+
+  struct timespec tv = {0};
+  clock_gettime(0, &tv);
+  
+  if (timer != NULL)
+  {
+    imuMsg.header.stamp.nanosec = tv.tv_nsec;
+    imuMsg.header.stamp.sec = tv.tv_sec;
+    
+    imuMsg.header.frame_id.data = (char*)malloc(4*sizeof(char));
+    char frameIdString[] = "imu";
+    memcpy(imuMsg.header.frame_id.data, frameIdString, strlen(frameIdString) + 1);
+    imuMsg.header.frame_id.size = strlen(imuMsg.header.frame_id.data);
+    imuMsg.header.frame_id.capacity = 4;
+
+    imuMsg.orientation.x = quatX;
+    imuMsg.orientation.y = quatY;
+    imuMsg.orientation.z = quatZ;
+    imuMsg.orientation.w = quatW;
+
+    imuMsg.angular_velocity.x = xVelocity;
+    imuMsg.angular_velocity.y = yVelocity;
+    imuMsg.angular_velocity.z = zVelocity;
+
+    imuMsg.linear_acceleration.x = xAcc;
+    imuMsg.linear_acceleration.y = yAcc;
+    imuMsg.linear_acceleration.z = zAcc;
+    RCSOFTCHECK(rcl_publish(&imuMsgPublisher, &imuMsg, NULL));
+  }
+}
+
 
 /**************************************************************
    robotStateSubscriptionCallback()
@@ -111,17 +157,34 @@ void ros2HandlerSetup()
             "imu_zaxis"));
 
   // create timer,
-  const unsigned int timer_timeout = 250;
+  const unsigned int imu_zaxis_timer_timeout = 250;
   RCCHECK(rclc_timer_init_default(
             &imuZAxisPublisherTimer,
             &support,
-            RCL_MS_TO_NS(timer_timeout),
+            RCL_MS_TO_NS(imu_zaxis_timer_timeout),
             imuZaxisTimerCallback));
 
-  // create executor
-  // The "2" in the init call below is because we have a timer and a subscriber.
-  RCCHECK(rclc_executor_init(&executor, &support.context, 2, &allocator));
+  // create publisher
+  RCCHECK(rclc_publisher_init_default(
+            &imuMsgPublisher,
+            &node,
+            ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Imu),
+            "imu"));
+
+  // create timer,
+  const unsigned int imu_msg_timer_timeout = 250;
+  RCCHECK(rclc_timer_init_default(
+            &imuMsgPublisherTimer,
+            &support,
+            RCL_MS_TO_NS(imu_msg_timer_timeout),
+            imuMsgTimerCallback));
+
+  // Create Executor -- MAY NEED TO UPDATE A NUMBER BELOW !!!!!!
+  // *** The "3" in the init call below is because we have two timers and a subscriber ***
+  // *** Publishers don't factor into this number I guess.                             ***
+  RCCHECK(rclc_executor_init(&executor, &support.context, 3, &allocator));
   RCCHECK(rclc_executor_add_timer(&executor, &imuZAxisPublisherTimer));
+  RCCHECK(rclc_executor_add_timer(&executor, &imuMsgPublisherTimer));
   RCCHECK(rclc_executor_add_subscription(&executor, &robotStateSubscriber, &robotStateMsg, &robotStateSubscriptionCallback, ON_NEW_DATA));
 
   imuZAxisMsg.data = 0.0;
