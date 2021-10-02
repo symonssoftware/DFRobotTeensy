@@ -13,17 +13,24 @@
 #include <rclc/rclc.h>
 #include <rclc/executor.h>
 
+#include <geometry_msgs/msg/transform_stamped.h>
+#include <tf2_msgs/msg/tf_message.h>
+
 #include <std_msgs/msg/int32.h>
 #include <std_msgs/msg/float32.h>
+
 #include <sensor_msgs/msg/imu.h>
 
 rcl_subscription_t robotStateSubscriber;
+
 rcl_publisher_t imuZAxisPublisher;
 rcl_publisher_t imuMsgPublisher;
+rcl_publisher_t tfMsgPublisher;
 
 std_msgs__msg__Int32 robotStateMsg;
 std_msgs__msg__Float32 imuZAxisMsg;
 sensor_msgs__msg__Imu imuMsg;
+tf2_msgs__msg__TFMessage *tfMessage;
 
 rclc_executor_t executor;
 rclc_support_t support;
@@ -31,6 +38,7 @@ rcl_allocator_t allocator;
 rcl_node_t node;
 rcl_timer_t imuZAxisPublisherTimer;
 rcl_timer_t imuMsgPublisherTimer;
+rcl_timer_t tfMsgPublisherTimer;
 
 #define LED_PIN 13
 
@@ -89,11 +97,11 @@ void imuMsgTimerCallback(rcl_timer_t *timer, int64_t last_call_time)
     imuMsg.header.stamp.nanosec = tv.tv_nsec;
     imuMsg.header.stamp.sec = tv.tv_sec;
     
-    imuMsg.header.frame_id.data = (char*)malloc(4*sizeof(char));
+    imuMsg.header.frame_id.data = (char*)malloc(100*sizeof(char));
     char frameIdString[] = "imu";
     memcpy(imuMsg.header.frame_id.data, frameIdString, strlen(frameIdString) + 1);
     imuMsg.header.frame_id.size = strlen(imuMsg.header.frame_id.data);
-    imuMsg.header.frame_id.capacity = 4;
+    imuMsg.header.frame_id.capacity = 100;
 
     imuMsg.orientation.x = quatX;
     imuMsg.orientation.y = quatY;
@@ -107,10 +115,40 @@ void imuMsgTimerCallback(rcl_timer_t *timer, int64_t last_call_time)
     imuMsg.linear_acceleration.x = xAcc;
     imuMsg.linear_acceleration.y = yAcc;
     imuMsg.linear_acceleration.z = zAcc;
+
+    imuMsg.orientation_covariance[0] = -1;
+    imuMsg.angular_velocity_covariance[0] = -1;
+    imuMsg.linear_acceleration_covariance[0] = -1;
+    
     RCSOFTCHECK(rcl_publish(&imuMsgPublisher, &imuMsg, NULL));
   }
 }
 
+// For some reason, without this duplicate method definition, the dumb-ass
+// Arduino compiler wouldn't not do it's job.
+void tfMsgTimerCallback(rcl_timer_t *timer, int64_t last_call_time);
+/**************************************************************
+   tfMsgTimerCallback()
+ **************************************************************/
+void tfMsgTimerCallback(rcl_timer_t *timer, int64_t last_call_time)
+{
+  RCLC_UNUSED(last_call_time);
+
+  struct timespec tv = {0};
+  clock_gettime(0, &tv);
+  
+  if (timer != NULL)
+  {
+    tfMessage->transforms.data[0].transform.rotation.x = (double)quatX;
+    tfMessage->transforms.data[0].transform.rotation.y = (double)quatY;
+    tfMessage->transforms.data[0].transform.rotation.z = (double)quatZ; 
+    tfMessage->transforms.data[0].transform.rotation.w = (double)quatW;
+    tfMessage->transforms.data[0].header.stamp.nanosec = tv.tv_nsec;
+    tfMessage->transforms.data[0].header.stamp.sec = tv.tv_sec;
+
+    RCSOFTCHECK(rcl_publish(&tfMsgPublisher, tfMessage, NULL));
+  }
+}
 
 /**************************************************************
    robotStateSubscriptionCallback()
@@ -169,7 +207,7 @@ void ros2HandlerSetup()
             &imuMsgPublisher,
             &node,
             ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Imu),
-            "imu"));
+            "/imu"));
 
   // create timer,
   const unsigned int imu_msg_timer_timeout = 250;
@@ -179,12 +217,43 @@ void ros2HandlerSetup()
             RCL_MS_TO_NS(imu_msg_timer_timeout),
             imuMsgTimerCallback));
 
-  // Create Executor -- MAY NEED TO UPDATE A NUMBER BELOW !!!!!!
-  // *** The "3" in the init call below is because we have two timers and a subscriber ***
+  // create publisher
+  RCCHECK(rclc_publisher_init_default(
+            &tfMsgPublisher,
+            &node,
+            ROSIDL_GET_MSG_TYPE_SUPPORT(tf2_msgs, msg, TFMessage),
+            "/tf"));
+
+  // create timer,
+  const unsigned int tf_msg_timer_timeout = 250;
+  RCCHECK(rclc_timer_init_default(
+            &tfMsgPublisherTimer,
+            &support,
+            RCL_MS_TO_NS(tf_msg_timer_timeout),
+            tfMsgTimerCallback));
+            
+  tfMessage = tf2_msgs__msg__TFMessage__create();
+  geometry_msgs__msg__TransformStamped__Sequence__init(&tfMessage->transforms, 1);
+
+  tfMessage->transforms.data[0].header.frame_id.data = (char*)malloc(100*sizeof(char));
+  char tfMsgFrameIdString[] = "/base_link";
+  memcpy(tfMessage->transforms.data[0].header.frame_id.data, tfMsgFrameIdString, strlen(tfMsgFrameIdString) + 1);
+  tfMessage->transforms.data[0].header.frame_id.size = strlen(tfMessage->transforms.data[0].header.frame_id.data);
+  tfMessage->transforms.data[0].header.frame_id.capacity = 100;
+
+  char tfMsgChildFrameIdString[] = "/imu_link";
+  tfMessage->transforms.data[0].child_frame_id.data =  (char*)malloc(100*sizeof(char));
+  memcpy(tfMessage->transforms.data[0].child_frame_id.data, tfMsgChildFrameIdString, strlen(tfMsgChildFrameIdString) + 1);
+  tfMessage->transforms.data[0].child_frame_id.size = strlen(tfMessage->transforms.data[0].child_frame_id.data);
+  tfMessage->transforms.data[0].child_frame_id.capacity = 100;
+
+  // Create Executor -- MAY NEED TO UPDATE THE MAGIC NUMBER BELOW !!!!!!
+  // *** The "4" in the init call below is because we have three timers and a subscriber ***
   // *** Publishers don't factor into this number I guess.                             ***
-  RCCHECK(rclc_executor_init(&executor, &support.context, 3, &allocator));
+  RCCHECK(rclc_executor_init(&executor, &support.context, 4, &allocator));
   RCCHECK(rclc_executor_add_timer(&executor, &imuZAxisPublisherTimer));
   RCCHECK(rclc_executor_add_timer(&executor, &imuMsgPublisherTimer));
+  RCCHECK(rclc_executor_add_timer(&executor, &tfMsgPublisherTimer));
   RCCHECK(rclc_executor_add_subscription(&executor, &robotStateSubscriber, &robotStateMsg, &robotStateSubscriptionCallback, ON_NEW_DATA));
 
   imuZAxisMsg.data = 0.0;
