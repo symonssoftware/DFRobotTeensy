@@ -161,63 +161,61 @@ void robotStateSubscriptionCallback(const void * msgin)
 }
 
 /**************************************************************
-   ros2HandlerSetup()
+   createRobotStateSubscriber()
  **************************************************************/
-void ros2HandlerSetup()
+void createRobotStateSubscriber()
 {
-  set_microros_transports();
-
-  pinMode(LED_PIN, OUTPUT);
-  digitalWrite(LED_PIN, HIGH);
-
-  delay(2000);
-
-  allocator = rcl_get_default_allocator();
-
-  //create init_options
-  RCCHECK(rclc_support_init(&support, 0, NULL, &allocator));
-
-  // create node
-  RCCHECK(rclc_node_init_default(&node, "micro_ros_arduino_node", "", &support));
-
-  // create subscriber
-  RCCHECK(rclc_subscription_init_default(
+    RCCHECK(rclc_subscription_init_default(
             &robotStateSubscriber,
             &node,
             ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Int32),
             "robot_state"));
+}
 
-  // create publisher
+/**************************************************************
+   createImuZAxisPublisher()
+ **************************************************************/
+void createImuZAxisPublisher()
+{
   RCCHECK(rclc_publisher_init_default(
             &imuZAxisPublisher,
             &node,
             ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Float32),
             "imu_zaxis"));
-
-  // create timer,
+            
   const unsigned int imu_zaxis_timer_timeout = 250;
   RCCHECK(rclc_timer_init_default(
             &imuZAxisPublisherTimer,
             &support,
             RCL_MS_TO_NS(imu_zaxis_timer_timeout),
             imuZaxisTimerCallback));
+}
 
-  // create publisher
+/**************************************************************
+   createImuDataMsgPublisher()
+ **************************************************************/
+void createImuDataMsgPublisher()
+{
   RCCHECK(rclc_publisher_init_default(
             &imuMsgPublisher,
             &node,
             ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Imu),
-            "/imu"));
+            "/imu_data"));
 
-  // create timer,
   const unsigned int imu_msg_timer_timeout = 250;
   RCCHECK(rclc_timer_init_default(
             &imuMsgPublisherTimer,
             &support,
             RCL_MS_TO_NS(imu_msg_timer_timeout),
             imuMsgTimerCallback));
+}
 
-  // create publisher
+/**************************************************************
+   createTfMsgPublisher()
+ **************************************************************/
+void createTfMsgPublisher()
+{
+    // create publisher
   RCCHECK(rclc_publisher_init_default(
             &tfMsgPublisher,
             &node,
@@ -246,14 +244,43 @@ void ros2HandlerSetup()
   memcpy(tfMessage->transforms.data[0].child_frame_id.data, tfMsgChildFrameIdString, strlen(tfMsgChildFrameIdString) + 1);
   tfMessage->transforms.data[0].child_frame_id.size = strlen(tfMessage->transforms.data[0].child_frame_id.data);
   tfMessage->transforms.data[0].child_frame_id.capacity = 100;
+}
+
+/**************************************************************
+   ros2HandlerSetup()
+ **************************************************************/
+void ros2HandlerSetup()
+{
+  set_microros_transports();
+
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, HIGH);
+
+  delay(2000);
+
+  allocator = rcl_get_default_allocator();
+
+  //create init_options
+  RCCHECK(rclc_support_init(&support, 0, NULL, &allocator));
+
+  // create node
+  RCCHECK(rclc_node_init_default(&node, "micro_ros_arduino_node", "", &support));
+
+  createRobotStateSubscriber();
+
+  //createImuZAxisPublisher();
+
+  createImuDataMsgPublisher();
+
+  //createTfMsgPublisher();
 
   // Create Executor -- MAY NEED TO UPDATE THE MAGIC NUMBER BELOW !!!!!!
-  // *** The "4" in the init call below is because we have three timers and a subscriber ***
-  // *** Publishers don't factor into this number I guess.                             ***
-  RCCHECK(rclc_executor_init(&executor, &support.context, 4, &allocator));
-  RCCHECK(rclc_executor_add_timer(&executor, &imuZAxisPublisherTimer));
+  // *** The magic number equals the number of timers plus the number of subscribers ***
+  // *** Publishers don't factor into this number I guess.                           ***
+  RCCHECK(rclc_executor_init(&executor, &support.context, 2, &allocator));
+  //RCCHECK(rclc_executor_add_timer(&executor, &imuZAxisPublisherTimer));
   RCCHECK(rclc_executor_add_timer(&executor, &imuMsgPublisherTimer));
-  RCCHECK(rclc_executor_add_timer(&executor, &tfMsgPublisherTimer));
+  //RCCHECK(rclc_executor_add_timer(&executor, &tfMsgPublisherTimer));
   RCCHECK(rclc_executor_add_subscription(&executor, &robotStateSubscriber, &robotStateMsg, &robotStateSubscriptionCallback, ON_NEW_DATA));
 
   imuZAxisMsg.data = 0.0;

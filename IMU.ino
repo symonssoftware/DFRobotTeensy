@@ -27,6 +27,25 @@ float yAcc = 0.0;
 float zAcc = 0.0;
 
 /**************************************************************
+   euler_to_quat()
+ **************************************************************/
+const void euler_to_quat(float x, float y, float z, double* q) 
+{
+    float c1 = cos((y*3.14/180.0)/2);
+    float c2 = cos((z*3.14/180.0)/2);
+    float c3 = cos((x*3.14/180.0)/2);
+
+    float s1 = sin((y*3.14/180.0)/2);
+    float s2 = sin((z*3.14/180.0)/2);
+    float s3 = sin((x*3.14/180.0)/2);
+
+    q[0] = c1 * c2 * c3 - s1 * s2 * s3;
+    q[1] = s1 * s2 * c3 + c1 * c2 * s3;
+    q[2] = s1 * c2 * c3 + c1 * s2 * s3;
+    q[3] = c1 * s2 * c3 - s1 * c2 * s3;
+}
+
+/**************************************************************
    imuSetup()
  **************************************************************/
 void imuSetup()
@@ -66,26 +85,17 @@ void imuLoop()
     yAxis = (float)JY901.stcAngle.Angle[1] / 32768.0 * 180.0;
     zAxis = (float)JY901.stcAngle.Angle[2] / 32768.0 * 180.0;
 
-    float yaw = zAxis * DEG2RAD;
-    float pitch = yAxis * DEG2RAD;
-    float roll = xAxis * DEG2RAD;
+    //float yaw = zAxis; * DEG2RAD;
+    //float pitch = yAxis; * DEG2RAD;
+    //float roll = xAxis; * DEG2RAD;
+
+    double q[4];
+    euler_to_quat(xAxis, yAxis, zAxis, q);
     
-    float rollOver2 = roll * 0.5f;
-    float sinRollOver2 = (float)sin((double)rollOver2);
-    float cosRollOver2 = (float)cos((double)rollOver2);
-    
-    float pitchOver2 = pitch * 0.5f;
-    float sinPitchOver2 = (float)sin((double)pitchOver2);
-    float cosPitchOver2 = (float)cos((double)pitchOver2);
-    
-    float yawOver2 = yaw * 0.5f;
-    float sinYawOver2 = (float)sin((double)yawOver2);
-    float cosYawOver2 = (float)cos((double)yawOver2);
-    
-    quatW = cosYawOver2 * cosPitchOver2 * cosRollOver2 + sinYawOver2 * sinPitchOver2 * sinRollOver2;
-    quatX = cosYawOver2 * sinPitchOver2 * cosRollOver2 + sinYawOver2 * cosPitchOver2 * sinRollOver2;
-    quatY = sinYawOver2 * cosPitchOver2 * cosRollOver2 - cosYawOver2 * sinPitchOver2 * sinRollOver2;
-    quatZ = cosYawOver2 * cosPitchOver2 * sinRollOver2 - sinYawOver2 * sinPitchOver2 * cosRollOver2;
+    quatW = q[0];
+    quatX = q[1];
+    quatY = q[2];
+    quatZ = q[3];
 
     //Serial.print("Z-Axis: ");
     //Serial.println(zAxis);
