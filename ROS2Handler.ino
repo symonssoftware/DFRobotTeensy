@@ -200,7 +200,7 @@ void createImuDataMsgPublisher()
             &imuMsgPublisher,
             &node,
             ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Imu),
-            "/imu_data"));
+            "/imu/data"));
 
   const unsigned int imu_msg_timer_timeout = 250;
   RCCHECK(rclc_timer_init_default(
