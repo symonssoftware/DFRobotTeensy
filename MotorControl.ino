@@ -20,14 +20,30 @@ static const int MAX_MOTOR_SPEED = 220;
 static const int MIN_MOTOR_SPEED = 0;
 static const int MOTOR_DEADBAND = 10;
 
+static const int ENC_COUNT_PER_REV = 663;
+
+static const float RPM_TO_RADIANS = 0.10471975512;
+
 byte leftEncoderPinALast;
 byte rightEncoderPinALast;
 
-int leftEncoderDuration;
-int rightEncoderDuration;
+int leftEncoderPulseCount;
+int rightEncoderPulseCount;
 
 boolean leftEncoderDirection;
 boolean rightEncoderDirection;
+
+int encoderCalculationInterval = 1000; // One second intervals
+long encoderCalculationPreviousMillis = 0;
+long encoderCalculationCurrentMillis = 0;
+
+float rpmRight = 0.0;
+float angularVelocityRight = 0.0;
+float angularVelocityRightDegrees = 0.0;
+
+float rpmLeft = 0.0;
+float angularVelocityLeft = 0.0;
+float angularVelocityLeftDegrees = 0.0;
 
 /**************************************************************
    motorControlSetup()
@@ -56,7 +72,23 @@ void motorControlSetup()
  **************************************************************/
 void motorControlLoop()
 {
-  // Do nothing for now ...
+  encoderCalculationCurrentMillis = millis();
+
+  if ((encoderCalculationCurrentMillis - encoderCalculationPreviousMillis) > encoderCalculationInterval) 
+  {
+    encoderCalculationPreviousMillis = encoderCalculationCurrentMillis;
+
+    rpmRight = (float)(rightEncoderPulseCount * 60.0 / ENC_COUNT_PER_REV);
+    angularVelocityRight = rpmRight * RPM_TO_RADIANS;   
+    //angularVelocityRightDegrees = angularVelocityRight * RAD_TO_DEG;
+
+    rpmLeft = (float)(rightEncoderPulseCount * 60.0 / ENC_COUNT_PER_REV);
+    angularVelocityLeft = rpmLeft * RPM_TO_RADIANS;   
+    ///angularVelocityLeftDegrees = angularVelocityLeft * RAD_TO_DEG;
+
+    leftEncoderPulseCount = 0;
+    rightEncoderPulseCount = 0;
+  }
 }
 
 /**************************************************************
@@ -64,11 +96,11 @@ void motorControlLoop()
  **************************************************************/
 void leftEncoderInit()
 {
-  leftEncoderDuration = 0;
+  leftEncoderPulseCount = 0;
   leftEncoderDirection = true; //default -> Forward
   pinMode(LEFT_MOTOR_ENCODER_A_PIN, INPUT_PULLUP);
   pinMode(LEFT_MOTOR_ENCODER_B_PIN, INPUT);
-  attachInterrupt(digitalPinToInterrupt(LEFT_MOTOR_ENCODER_A_PIN), leftWheelSpeed, CHANGE); 
+  attachInterrupt(digitalPinToInterrupt(LEFT_MOTOR_ENCODER_A_PIN), leftWheelPulse, CHANGE); 
 }
 
 /**************************************************************
@@ -76,17 +108,17 @@ void leftEncoderInit()
  **************************************************************/
 void rightEncoderInit()
 {
-  rightEncoderDuration = 0;
+  rightEncoderPulseCount = 0;
   rightEncoderDirection = true; //default -> Forward
   pinMode(RIGHT_MOTOR_ENCODER_A_PIN, INPUT_PULLUP);
   pinMode(RIGHT_MOTOR_ENCODER_B_PIN, INPUT);
-  attachInterrupt(digitalPinToInterrupt(RIGHT_MOTOR_ENCODER_A_PIN), rightWheelSpeed, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(RIGHT_MOTOR_ENCODER_A_PIN), rightWheelPulse, CHANGE);
 }
 
 /**************************************************************
-   leftWheelSpeed()
+   leftWheelPulse()
  **************************************************************/
-void leftWheelSpeed()
+void leftWheelPulse()
 {
   int Lstate = digitalRead(LEFT_MOTOR_ENCODER_A_PIN);
   if((leftEncoderPinALast == LOW) && (Lstate == HIGH))
@@ -107,18 +139,18 @@ void leftWheelSpeed()
 
   if(leftEncoderDirection)
   {
-    leftEncoderDuration--;
+    leftEncoderPulseCount--;
   }
   else  
   {
-    leftEncoderDuration++;
+    leftEncoderPulseCount++;
   }
 }
 
 /**************************************************************
    rightWheelSpeed()
  **************************************************************/
-void rightWheelSpeed()
+void rightWheelPulse()
 {
   int Lstate = digitalRead(RIGHT_MOTOR_ENCODER_A_PIN);
   if((rightEncoderPinALast == LOW) && (Lstate == HIGH))
@@ -139,11 +171,11 @@ void rightWheelSpeed()
 
   if(rightEncoderDirection)
   {
-    rightEncoderDuration--;
+    rightEncoderPulseCount--;
   }
   else  
   {
-    rightEncoderDuration++;
+    rightEncoderPulseCount++;
   }
 }
 

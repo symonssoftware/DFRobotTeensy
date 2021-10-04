@@ -12,33 +12,28 @@
 #include <rcl/error_handling.h>
 #include <rclc/rclc.h>
 #include <rclc/executor.h>
-
-#include <geometry_msgs/msg/transform_stamped.h>
-#include <tf2_msgs/msg/tf_message.h>
+#include <vector>
 
 #include <std_msgs/msg/int32.h>
-#include <std_msgs/msg/float32.h>
 
 #include <sensor_msgs/msg/imu.h>
+#include <sensor_msgs/msg/joint_state.h>
 
 rcl_subscription_t robotStateSubscriber;
 
-rcl_publisher_t imuZAxisPublisher;
 rcl_publisher_t imuMsgPublisher;
-rcl_publisher_t tfMsgPublisher;
+rcl_publisher_t jointStateMsgPublisher;
 
 std_msgs__msg__Int32 robotStateMsg;
-std_msgs__msg__Float32 imuZAxisMsg;
 sensor_msgs__msg__Imu imuMsg;
-tf2_msgs__msg__TFMessage *tfMessage;
+sensor_msgs__msg__JointState jointStateMsg;
 
 rclc_executor_t executor;
 rclc_support_t support;
 rcl_allocator_t allocator;
 rcl_node_t node;
-rcl_timer_t imuZAxisPublisherTimer;
 rcl_timer_t imuMsgPublisherTimer;
-rcl_timer_t tfMsgPublisherTimer;
+rcl_timer_t jointStateMsgPublisherTimer;
 
 #define LED_PIN 13
 
@@ -64,23 +59,6 @@ void errorLoop()
 
 // For some reason, without this duplicate method definition, the dumb-ass
 // Arduino compiler wouldn't not do it's job.
-void imuZaxisTimerCallback(rcl_timer_t *timer, int64_t last_call_time);
-/**************************************************************
-   imuZaxisTimerCallback()
- **************************************************************/
-void imuZaxisTimerCallback(rcl_timer_t *timer, int64_t last_call_time)
-{
-  RCLC_UNUSED(last_call_time);
-
-  if (timer != NULL)
-  {
-    imuZAxisMsg.data = zAxis;
-    RCSOFTCHECK(rcl_publish(&imuZAxisPublisher, &imuZAxisMsg, NULL));
-  }
-}
-
-// For some reason, without this duplicate method definition, the dumb-ass
-// Arduino compiler wouldn't not do it's job.
 void imuMsgTimerCallback(rcl_timer_t *timer, int64_t last_call_time);
 /**************************************************************
    imuMsgTimerCallback()
@@ -91,17 +69,17 @@ void imuMsgTimerCallback(rcl_timer_t *timer, int64_t last_call_time)
 
   struct timespec tv = {0};
   clock_gettime(0, &tv);
-  
+
   if (timer != NULL)
   {
     imuMsg.header.stamp.nanosec = tv.tv_nsec;
     imuMsg.header.stamp.sec = tv.tv_sec;
-    
-    imuMsg.header.frame_id.data = (char*)malloc(100*sizeof(char));
+
+    imuMsg.header.frame_id.data = (char*)malloc(10 * sizeof(char));
     char frameIdString[] = "imu";
     memcpy(imuMsg.header.frame_id.data, frameIdString, strlen(frameIdString) + 1);
     imuMsg.header.frame_id.size = strlen(imuMsg.header.frame_id.data);
-    imuMsg.header.frame_id.capacity = 100;
+    imuMsg.header.frame_id.capacity = 10;
 
     imuMsg.orientation.x = quatX;
     imuMsg.orientation.y = quatY;
@@ -119,34 +97,75 @@ void imuMsgTimerCallback(rcl_timer_t *timer, int64_t last_call_time)
     imuMsg.orientation_covariance[0] = -1;
     imuMsg.angular_velocity_covariance[0] = -1;
     imuMsg.linear_acceleration_covariance[0] = -1;
-    
+
     RCSOFTCHECK(rcl_publish(&imuMsgPublisher, &imuMsg, NULL));
   }
 }
 
 // For some reason, without this duplicate method definition, the dumb-ass
 // Arduino compiler wouldn't not do it's job.
-void tfMsgTimerCallback(rcl_timer_t *timer, int64_t last_call_time);
+void jointStateMsgTimerCallback(rcl_timer_t *timer, int64_t last_call_time);
 /**************************************************************
-   tfMsgTimerCallback()
+   jointStateMsgTimerCallback()
  **************************************************************/
-void tfMsgTimerCallback(rcl_timer_t *timer, int64_t last_call_time)
+void jointStateMsgTimerCallback(rcl_timer_t *timer, int64_t last_call_time)
 {
   RCLC_UNUSED(last_call_time);
 
   struct timespec tv = {0};
   clock_gettime(0, &tv);
-  
+
   if (timer != NULL)
   {
-    tfMessage->transforms.data[0].transform.rotation.x = (double)quatX;
-    tfMessage->transforms.data[0].transform.rotation.y = (double)quatY;
-    tfMessage->transforms.data[0].transform.rotation.z = (double)quatZ; 
-    tfMessage->transforms.data[0].transform.rotation.w = (double)quatW;
-    tfMessage->transforms.data[0].header.stamp.nanosec = tv.tv_nsec;
-    tfMessage->transforms.data[0].header.stamp.sec = tv.tv_sec;
+    // Joint State Message Header
+    jointStateMsg.header.stamp.nanosec = tv.tv_nsec;
+    jointStateMsg.header.stamp.sec = tv.tv_sec;
 
-    RCSOFTCHECK(rcl_publish(&tfMsgPublisher, tfMessage, NULL));
+    jointStateMsg.header.frame_id.capacity = 10;
+    jointStateMsg.header.frame_id.data = (char*) malloc(jointStateMsg.header.frame_id.capacity * sizeof(char));
+    strcpy(jointStateMsg.header.frame_id.data, "joint_state");
+    jointStateMsg.header.frame_id.size = strlen(jointStateMsg.header.frame_id.data);
+
+    // Initialize data sizes for Left and Right Joints
+    jointStateMsg.name.size = 2;
+    jointStateMsg.velocity.size = 2;
+    jointStateMsg.position.size = 2;
+    jointStateMsg.effort.size = 2;
+    
+    // Allocate memory for message data
+    jointStateMsg.name.capacity = 10;
+    jointStateMsg.name.data = (rosidl_runtime_c__String*) malloc(jointStateMsg.name.capacity * sizeof(rosidl_runtime_c__String));
+
+    jointStateMsg.velocity.capacity = 10;
+    jointStateMsg.velocity.data = (double*) malloc(jointStateMsg.velocity.capacity * sizeof(double));
+
+    jointStateMsg.position.capacity = 10;
+    jointStateMsg.position.data = (double*) malloc(jointStateMsg.position.capacity * sizeof(double));
+
+    jointStateMsg.effort.capacity = 10;
+    jointStateMsg.effort.data = (double*) malloc(jointStateMsg.effort.capacity * sizeof(double));
+
+    // Left Joint
+    jointStateMsg.name.data[0].capacity = 10;
+    jointStateMsg.name.data[0].data = (char*) malloc(jointStateMsg.name.data[0].capacity * sizeof(char));
+    strcpy(jointStateMsg.name.data[0].data, "drivewhl_l_joint");
+    jointStateMsg.name.data[0].size = strlen(jointStateMsg.name.data[0].data);
+
+    jointStateMsg.velocity.data[0] = angularVelocityLeft;
+    jointStateMsg.position.data[0] = 0.0;
+    jointStateMsg.effort.data[0] = 0.0;
+
+    // Right Joint
+    jointStateMsg.name.data[1].capacity = 10;
+    jointStateMsg.name.data[1].data = (char*) malloc(jointStateMsg.name.data[1].capacity * sizeof(char));
+    strcpy(jointStateMsg.name.data[1].data, "drivewhl_r_joint");
+    jointStateMsg.name.data[1].size = strlen(jointStateMsg.name.data[1].data);
+
+    jointStateMsg.velocity.data[1] = angularVelocityRight;
+    jointStateMsg.position.data[1] = 0.0;
+    jointStateMsg.effort.data[1] = 0.0;
+
+    RCSOFTCHECK(rcl_publish(&jointStateMsgPublisher, &jointStateMsg, NULL));
   }
 }
 
@@ -165,30 +184,11 @@ void robotStateSubscriptionCallback(const void * msgin)
  **************************************************************/
 void createRobotStateSubscriber()
 {
-    RCCHECK(rclc_subscription_init_default(
+  RCCHECK(rclc_subscription_init_default(
             &robotStateSubscriber,
             &node,
             ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Int32),
             "robot_state"));
-}
-
-/**************************************************************
-   createImuZAxisPublisher()
- **************************************************************/
-void createImuZAxisPublisher()
-{
-  RCCHECK(rclc_publisher_init_default(
-            &imuZAxisPublisher,
-            &node,
-            ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Float32),
-            "imu_zaxis"));
-            
-  const unsigned int imu_zaxis_timer_timeout = 250;
-  RCCHECK(rclc_timer_init_default(
-            &imuZAxisPublisherTimer,
-            &support,
-            RCL_MS_TO_NS(imu_zaxis_timer_timeout),
-            imuZaxisTimerCallback));
 }
 
 /**************************************************************
@@ -211,39 +211,22 @@ void createImuDataMsgPublisher()
 }
 
 /**************************************************************
-   createTfMsgPublisher()
+   createJointStateMsgPublisher()
  **************************************************************/
-void createTfMsgPublisher()
+void createJointStateMsgPublisher()
 {
-    // create publisher
   RCCHECK(rclc_publisher_init_default(
-            &tfMsgPublisher,
+            &jointStateMsgPublisher,
             &node,
-            ROSIDL_GET_MSG_TYPE_SUPPORT(tf2_msgs, msg, TFMessage),
-            "/tf"));
+            ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, JointState),
+            "/joint_states"));
 
-  // create timer,
-  const unsigned int tf_msg_timer_timeout = 250;
+  const unsigned int joint_state_msg_timer_timeout = 250;
   RCCHECK(rclc_timer_init_default(
-            &tfMsgPublisherTimer,
+            &jointStateMsgPublisherTimer,
             &support,
-            RCL_MS_TO_NS(tf_msg_timer_timeout),
-            tfMsgTimerCallback));
-            
-  tfMessage = tf2_msgs__msg__TFMessage__create();
-  geometry_msgs__msg__TransformStamped__Sequence__init(&tfMessage->transforms, 1);
-
-  tfMessage->transforms.data[0].header.frame_id.data = (char*)malloc(100*sizeof(char));
-  char tfMsgFrameIdString[] = "/base_link";
-  memcpy(tfMessage->transforms.data[0].header.frame_id.data, tfMsgFrameIdString, strlen(tfMsgFrameIdString) + 1);
-  tfMessage->transforms.data[0].header.frame_id.size = strlen(tfMessage->transforms.data[0].header.frame_id.data);
-  tfMessage->transforms.data[0].header.frame_id.capacity = 100;
-
-  char tfMsgChildFrameIdString[] = "/imu_link";
-  tfMessage->transforms.data[0].child_frame_id.data =  (char*)malloc(100*sizeof(char));
-  memcpy(tfMessage->transforms.data[0].child_frame_id.data, tfMsgChildFrameIdString, strlen(tfMsgChildFrameIdString) + 1);
-  tfMessage->transforms.data[0].child_frame_id.size = strlen(tfMessage->transforms.data[0].child_frame_id.data);
-  tfMessage->transforms.data[0].child_frame_id.capacity = 100;
+            RCL_MS_TO_NS(joint_state_msg_timer_timeout),
+            jointStateMsgTimerCallback));
 }
 
 /**************************************************************
@@ -268,22 +251,18 @@ void ros2HandlerSetup()
 
   createRobotStateSubscriber();
 
-  //createImuZAxisPublisher();
-
   createImuDataMsgPublisher();
-
-  //createTfMsgPublisher();
+  createJointStateMsgPublisher();
 
   // Create Executor -- MAY NEED TO UPDATE THE MAGIC NUMBER BELOW !!!!!!
   // *** The magic number equals the number of timers plus the number of subscribers ***
-  // *** Publishers don't factor into this number I guess.                           ***
-  RCCHECK(rclc_executor_init(&executor, &support.context, 2, &allocator));
-  //RCCHECK(rclc_executor_add_timer(&executor, &imuZAxisPublisherTimer));
-  RCCHECK(rclc_executor_add_timer(&executor, &imuMsgPublisherTimer));
-  //RCCHECK(rclc_executor_add_timer(&executor, &tfMsgPublisherTimer));
-  RCCHECK(rclc_executor_add_subscription(&executor, &robotStateSubscriber, &robotStateMsg, &robotStateSubscriptionCallback, ON_NEW_DATA));
+  // *** Publishers don't factor into this number, I guess.                           ***
+  RCCHECK(rclc_executor_init(&executor, &support.context, 3, &allocator));
 
-  imuZAxisMsg.data = 0.0;
+  RCCHECK(rclc_executor_add_timer(&executor, &imuMsgPublisherTimer));
+  RCCHECK(rclc_executor_add_timer(&executor, &jointStateMsgPublisherTimer));
+
+  RCCHECK(rclc_executor_add_subscription(&executor, &robotStateSubscriber, &robotStateMsg, &robotStateSubscriptionCallback, ON_NEW_DATA));
 }
 
 /**************************************************************

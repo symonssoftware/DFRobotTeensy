@@ -49,4 +49,7 @@ void loop()
     default:
       stopMotors();
   }
+
+  // For now, always run motorControlLoop
+  motorControlLoop();
 }
