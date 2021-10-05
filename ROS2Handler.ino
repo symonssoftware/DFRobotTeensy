@@ -20,12 +20,19 @@
 #include <sensor_msgs/msg/imu.h>
 #include <sensor_msgs/msg/joint_state.h>
 
+#include <std_msgs/msg/header.h>
+
+#include <rosidl_runtime_c/string.h>
+#include <rosidl_runtime_c/primitives_sequence_functions.h>
+#include <rosidl_runtime_c/string_functions.h>
+
 rcl_subscription_t robotStateSubscriber;
 
 rcl_publisher_t imuMsgPublisher;
 rcl_publisher_t jointStateMsgPublisher;
 
 std_msgs__msg__Int32 robotStateMsg;
+
 sensor_msgs__msg__Imu *imuMsg;
 sensor_msgs__msg__JointState *jointStateMsg;
 
@@ -33,6 +40,7 @@ rclc_executor_t executor;
 rclc_support_t support;
 rcl_allocator_t allocator;
 rcl_node_t node;
+
 rcl_timer_t imuMsgPublisherTimer;
 rcl_timer_t jointStateMsgPublisherTimer;
 
@@ -56,6 +64,28 @@ void errorLoop()
 
     delay(2000);
   }
+}
+
+/**************************************************************
+   createRobotStateSubscriber()
+ **************************************************************/
+void createRobotStateSubscriber()
+{
+  RCCHECK(rclc_subscription_init_default(
+            &robotStateSubscriber,
+            &node,
+            ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Int32),
+            "robot_state"));
+}
+
+/**************************************************************
+   robotStateSubscriptionCallback()
+ **************************************************************/
+void robotStateSubscriptionCallback(const void * msgin)
+{
+  const std_msgs__msg__Int32 *msg = (const std_msgs__msg__Int32 *)msgin;
+
+  robotState = msg->data;
 }
 
 // For some reason, without this duplicate method definition, the dumb-ass
@@ -91,53 +121,6 @@ void imuMsgTimerCallback(rcl_timer_t *timer, int64_t last_call_time)
 
     RCSOFTCHECK(rcl_publish(&imuMsgPublisher, imuMsg, NULL));
   }
-}
-
-// For some reason, without this duplicate method definition, the dumb-ass
-// Arduino compiler wouldn't not do it's job.
-void jointStateMsgTimerCallback(rcl_timer_t *timer, int64_t last_call_time);
-/**************************************************************
-   jointStateMsgTimerCallback()
- **************************************************************/
-void jointStateMsgTimerCallback(rcl_timer_t *timer, int64_t last_call_time)
-{
-  RCLC_UNUSED(last_call_time);
-
-  struct timespec tv = {0};
-  clock_gettime(0, &tv);
-
-  if (timer != NULL)
-  {
-    jointStateMsg->header.stamp.nanosec = tv.tv_nsec;
-    jointStateMsg->header.stamp.sec = tv.tv_sec;
-
-    jointStateMsg->velocity.data[0] = angularVelocityLeft;
-    jointStateMsg->velocity.data[1] = angularVelocityRight;
-
-    RCSOFTCHECK(rcl_publish(&jointStateMsgPublisher, &jointStateMsg, NULL));
-  }
-}
-
-/**************************************************************
-   robotStateSubscriptionCallback()
- **************************************************************/
-void robotStateSubscriptionCallback(const void * msgin)
-{
-  const std_msgs__msg__Int32 *msg = (const std_msgs__msg__Int32 *)msgin;
-
-  robotState = msg->data;
-}
-
-/**************************************************************
-   createRobotStateSubscriber()
- **************************************************************/
-void createRobotStateSubscriber()
-{
-  RCCHECK(rclc_subscription_init_default(
-            &robotStateSubscriber,
-            &node,
-            ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Int32),
-            "robot_state"));
 }
 
 /**************************************************************
@@ -190,6 +173,31 @@ void initializeImuMessage()
   imuMsg->linear_acceleration_covariance[0] = -1;
 }
 
+// For some reason, without this duplicate method definition, the dumb-ass
+// Arduino compiler wouldn't not do it's job.
+void jointStateMsgTimerCallback(rcl_timer_t *timer, int64_t last_call_time);
+/**************************************************************
+   jointStateMsgTimerCallback()
+ **************************************************************/
+void jointStateMsgTimerCallback(rcl_timer_t *timer, int64_t last_call_time)
+{
+  RCLC_UNUSED(last_call_time);
+
+  struct timespec tv = {0};
+  clock_gettime(0, &tv);
+
+  if (timer != NULL)
+  {
+    jointStateMsg->header.stamp.nanosec = tv.tv_nsec;
+    jointStateMsg->header.stamp.sec = tv.tv_sec;
+
+    jointStateMsg->velocity.data[0] = angularVelocityLeft;
+    jointStateMsg->velocity.data[1] = angularVelocityRight;
+
+    RCSOFTCHECK(rcl_publish(&jointStateMsgPublisher, jointStateMsg, NULL));
+  }
+}
+
 /**************************************************************
    createJointStateMsgPublisher()
  **************************************************************/
@@ -217,10 +225,15 @@ void initializeJointStateMessage()
   jointStateMsg = sensor_msgs__msg__JointState__create();
 
   jointStateMsg->header.frame_id.data = (char*)malloc(100 * sizeof(char));
-  char frameIdString[] = "joint_state";
+  char frameIdString[] = "joints";
   memcpy(jointStateMsg->header.frame_id.data, frameIdString, strlen(frameIdString) + 1);
   jointStateMsg->header.frame_id.size = strlen(jointStateMsg->header.frame_id.data);
   jointStateMsg->header.frame_id.capacity = 100;
+  
+  rosidl_runtime_c__String__Sequence__init(&jointStateMsg->name, 2);
+  rosidl_runtime_c__double__Sequence__init(&jointStateMsg->velocity, 2);
+  rosidl_runtime_c__double__Sequence__init(&jointStateMsg->position, 2);
+  rosidl_runtime_c__double__Sequence__init(&jointStateMsg->effort, 2);
 
   // Initialize data sizes for Left and Right Joints
   jointStateMsg->name.size = 2;
@@ -262,7 +275,6 @@ void initializeJointStateMessage()
   jointStateMsg->effort.data[1] = 0.0;
 }
 
-
 /**************************************************************
    ros2HandlerSetup()
  **************************************************************/
@@ -286,17 +298,18 @@ void ros2HandlerSetup()
   createRobotStateSubscriber();
 
   createImuDataMsgPublisher();
-  //createJointStateMsgPublisher();
+  createJointStateMsgPublisher();
 
   // Create Executor -- MAY NEED TO UPDATE THE MAGIC NUMBER BELOW !!!!!!
   // *** The magic number equals the number of timers plus the number of subscribers ***
   // *** Publishers don't factor into this number, I guess.                           ***
-  RCCHECK(rclc_executor_init(&executor, &support.context, 2, &allocator));
+  RCCHECK(rclc_executor_init(&executor, &support.context, 3, &allocator));
 
   initializeImuMessage();
+  initializeJointStateMessage();
 
   RCCHECK(rclc_executor_add_timer(&executor, &imuMsgPublisherTimer));
-  //RCCHECK(rclc_executor_add_timer(&executor, &jointStateMsgPublisherTimer));
+  RCCHECK(rclc_executor_add_timer(&executor, &jointStateMsgPublisherTimer));
 
   RCCHECK(rclc_executor_add_subscription(&executor, &robotStateSubscriber, &robotStateMsg, &robotStateSubscriptionCallback, ON_NEW_DATA));
 }
