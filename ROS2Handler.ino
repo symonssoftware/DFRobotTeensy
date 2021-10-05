@@ -75,11 +75,11 @@ void imuMsgTimerCallback(rcl_timer_t *timer, int64_t last_call_time)
     imuMsg.header.stamp.nanosec = tv.tv_nsec;
     imuMsg.header.stamp.sec = tv.tv_sec;
 
-    imuMsg.header.frame_id.data = (char*)malloc(10 * sizeof(char));
+    imuMsg.header.frame_id.data = (char*)malloc(100 * sizeof(char));
     char frameIdString[] = "imu";
     memcpy(imuMsg.header.frame_id.data, frameIdString, strlen(frameIdString) + 1);
     imuMsg.header.frame_id.size = strlen(imuMsg.header.frame_id.data);
-    imuMsg.header.frame_id.capacity = 10;
+    imuMsg.header.frame_id.capacity = 100;
 
     imuMsg.orientation.x = quatX;
     imuMsg.orientation.y = quatY;
@@ -121,10 +121,12 @@ void jointStateMsgTimerCallback(rcl_timer_t *timer, int64_t last_call_time)
     jointStateMsg.header.stamp.nanosec = tv.tv_nsec;
     jointStateMsg.header.stamp.sec = tv.tv_sec;
 
-    jointStateMsg.header.frame_id.capacity = 10;
-    jointStateMsg.header.frame_id.data = (char*) malloc(jointStateMsg.header.frame_id.capacity * sizeof(char));
-    strcpy(jointStateMsg.header.frame_id.data, "joint_state");
+    jointStateMsg.header.frame_id.data = (char*)malloc(100 * sizeof(char));
+    char frameIdString[] = "joint_state";
+    memcpy(jointStateMsg.header.frame_id.data, frameIdString, strlen(frameIdString) + 1);
     jointStateMsg.header.frame_id.size = strlen(jointStateMsg.header.frame_id.data);
+    jointStateMsg.header.frame_id.capacity = 100;
+
 
     // Initialize data sizes for Left and Right Joints
     jointStateMsg.name.size = 2;
@@ -133,20 +135,20 @@ void jointStateMsgTimerCallback(rcl_timer_t *timer, int64_t last_call_time)
     jointStateMsg.effort.size = 2;
     
     // Allocate memory for message data
-    jointStateMsg.name.capacity = 10;
+    jointStateMsg.name.capacity = 100;
     jointStateMsg.name.data = (rosidl_runtime_c__String*) malloc(jointStateMsg.name.capacity * sizeof(rosidl_runtime_c__String));
 
-    jointStateMsg.velocity.capacity = 10;
+    jointStateMsg.velocity.capacity = 100;
     jointStateMsg.velocity.data = (double*) malloc(jointStateMsg.velocity.capacity * sizeof(double));
 
-    jointStateMsg.position.capacity = 10;
+    jointStateMsg.position.capacity = 100;
     jointStateMsg.position.data = (double*) malloc(jointStateMsg.position.capacity * sizeof(double));
 
-    jointStateMsg.effort.capacity = 10;
+    jointStateMsg.effort.capacity = 100;
     jointStateMsg.effort.data = (double*) malloc(jointStateMsg.effort.capacity * sizeof(double));
 
     // Left Joint
-    jointStateMsg.name.data[0].capacity = 10;
+    jointStateMsg.name.data[0].capacity = 100;
     jointStateMsg.name.data[0].data = (char*) malloc(jointStateMsg.name.data[0].capacity * sizeof(char));
     strcpy(jointStateMsg.name.data[0].data, "drivewhl_l_joint");
     jointStateMsg.name.data[0].size = strlen(jointStateMsg.name.data[0].data);
@@ -156,7 +158,7 @@ void jointStateMsgTimerCallback(rcl_timer_t *timer, int64_t last_call_time)
     jointStateMsg.effort.data[0] = 0.0;
 
     // Right Joint
-    jointStateMsg.name.data[1].capacity = 10;
+    jointStateMsg.name.data[1].capacity = 100;
     jointStateMsg.name.data[1].data = (char*) malloc(jointStateMsg.name.data[1].capacity * sizeof(char));
     strcpy(jointStateMsg.name.data[1].data, "drivewhl_r_joint");
     jointStateMsg.name.data[1].size = strlen(jointStateMsg.name.data[1].data);

@@ -82,7 +82,7 @@ void motorControlLoop()
     angularVelocityRight = rpmRight * RPM_TO_RADIANS;   
     //angularVelocityRightDegrees = angularVelocityRight * RAD_TO_DEG;
 
-    rpmLeft = (float)(rightEncoderPulseCount * 60.0 / ENC_COUNT_PER_REV);
+    rpmLeft = (float)(leftEncoderPulseCount * 60.0 / ENC_COUNT_PER_REV);
     angularVelocityLeft = rpmLeft * RPM_TO_RADIANS;   
     ///angularVelocityLeftDegrees = angularVelocityLeft * RAD_TO_DEG;
 
