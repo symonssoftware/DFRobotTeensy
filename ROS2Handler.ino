@@ -27,7 +27,7 @@ rcl_publisher_t jointStateMsgPublisher;
 
 std_msgs__msg__Int32 robotStateMsg;
 sensor_msgs__msg__Imu *imuMsg;
-sensor_msgs__msg__JointState jointStateMsg;
+sensor_msgs__msg__JointState *jointStateMsg;
 
 rclc_executor_t executor;
 rclc_support_t support;
@@ -66,31 +66,31 @@ void imuMsgTimerCallback(rcl_timer_t *timer, int64_t last_call_time);
  **************************************************************/
 void imuMsgTimerCallback(rcl_timer_t *timer, int64_t last_call_time)
 {
-    RCLC_UNUSED(last_call_time);
+  RCLC_UNUSED(last_call_time);
 
-    struct timespec tv = {0};
-    clock_gettime(0, &tv);
+  struct timespec tv = {0};
+  clock_gettime(0, &tv);
 
-    if (timer != NULL)
-    {
-      imuMsg->header.stamp.nanosec = tv.tv_nsec;
-      imuMsg->header.stamp.sec = tv.tv_sec;
+  if (timer != NULL)
+  {
+    imuMsg->header.stamp.nanosec = tv.tv_nsec;
+    imuMsg->header.stamp.sec = tv.tv_sec;
 
-      imuMsg->orientation.x = quatX;
-      imuMsg->orientation.y = quatY;
-      imuMsg->orientation.z = quatZ;
-      imuMsg->orientation.w = quatW;
+    imuMsg->orientation.x = quatX;
+    imuMsg->orientation.y = quatY;
+    imuMsg->orientation.z = quatZ;
+    imuMsg->orientation.w = quatW;
 
-      imuMsg->angular_velocity.x = xVelocity;
-      imuMsg->angular_velocity.y = yVelocity;
-      imuMsg->angular_velocity.z = zVelocity;
+    imuMsg->angular_velocity.x = xVelocity;
+    imuMsg->angular_velocity.y = yVelocity;
+    imuMsg->angular_velocity.z = zVelocity;
 
-      imuMsg->linear_acceleration.x = xAcc;
-      imuMsg->linear_acceleration.y = yAcc;
-      imuMsg->linear_acceleration.z = zAcc;
-      
-      RCSOFTCHECK(rcl_publish(&imuMsgPublisher, imuMsg, NULL));
-    }
+    imuMsg->linear_acceleration.x = xAcc;
+    imuMsg->linear_acceleration.y = yAcc;
+    imuMsg->linear_acceleration.z = zAcc;
+
+    RCSOFTCHECK(rcl_publish(&imuMsgPublisher, imuMsg, NULL));
+  }
 }
 
 // For some reason, without this duplicate method definition, the dumb-ass
@@ -108,54 +108,11 @@ void jointStateMsgTimerCallback(rcl_timer_t *timer, int64_t last_call_time)
 
   if (timer != NULL)
   {
-    // Joint State Message Header
-    jointStateMsg.header.stamp.nanosec = tv.tv_nsec;
-    jointStateMsg.header.stamp.sec = tv.tv_sec;
+    jointStateMsg->header.stamp.nanosec = tv.tv_nsec;
+    jointStateMsg->header.stamp.sec = tv.tv_sec;
 
-    jointStateMsg.header.frame_id.data = (char*)malloc(100 * sizeof(char));
-    char frameIdString[] = "joint_state";
-    memcpy(jointStateMsg.header.frame_id.data, frameIdString, strlen(frameIdString) + 1);
-    jointStateMsg.header.frame_id.size = strlen(jointStateMsg.header.frame_id.data);
-    jointStateMsg.header.frame_id.capacity = 100;
-
-    // Initialize data sizes for Left and Right Joints
-    jointStateMsg.name.size = 2;
-    jointStateMsg.velocity.size = 2;
-    jointStateMsg.position.size = 2;
-    jointStateMsg.effort.size = 2;
-
-    // Allocate memory for message data
-    jointStateMsg.name.capacity = 100;
-    jointStateMsg.name.data = (rosidl_runtime_c__String*) malloc(jointStateMsg.name.capacity * sizeof(rosidl_runtime_c__String));
-
-    jointStateMsg.velocity.capacity = 100;
-    jointStateMsg.velocity.data = (double*) malloc(jointStateMsg.velocity.capacity * sizeof(double));
-
-    jointStateMsg.position.capacity = 100;
-    jointStateMsg.position.data = (double*) malloc(jointStateMsg.position.capacity * sizeof(double));
-
-    jointStateMsg.effort.capacity = 100;
-    jointStateMsg.effort.data = (double*) malloc(jointStateMsg.effort.capacity * sizeof(double));
-
-    // Left Joint
-    jointStateMsg.name.data[0].capacity = 100;
-    jointStateMsg.name.data[0].data = (char*) malloc(jointStateMsg.name.data[0].capacity * sizeof(char));
-    strcpy(jointStateMsg.name.data[0].data, "drivewhl_l_joint");
-    jointStateMsg.name.data[0].size = strlen(jointStateMsg.name.data[0].data);
-
-    jointStateMsg.velocity.data[0] = angularVelocityLeft;
-    jointStateMsg.position.data[0] = 0.0;
-    jointStateMsg.effort.data[0] = 0.0;
-
-    // Right Joint
-    jointStateMsg.name.data[1].capacity = 100;
-    jointStateMsg.name.data[1].data = (char*) malloc(jointStateMsg.name.data[1].capacity * sizeof(char));
-    strcpy(jointStateMsg.name.data[1].data, "drivewhl_r_joint");
-    jointStateMsg.name.data[1].size = strlen(jointStateMsg.name.data[1].data);
-
-    jointStateMsg.velocity.data[1] = angularVelocityRight;
-    jointStateMsg.position.data[1] = 0.0;
-    jointStateMsg.effort.data[1] = 0.0;
+    jointStateMsg->velocity.data[0] = angularVelocityLeft;
+    jointStateMsg->velocity.data[1] = angularVelocityRight;
 
     RCSOFTCHECK(rcl_publish(&jointStateMsgPublisher, &jointStateMsg, NULL));
   }
@@ -194,7 +151,7 @@ void createImuDataMsgPublisher()
             ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Imu),
             "/imu/data"));
 
-  const unsigned int imu_msg_timer_timeout = 250;
+  const unsigned int imu_msg_timer_timeout = 100;
   RCCHECK(rclc_timer_init_default(
             &imuMsgPublisherTimer,
             &support,
@@ -215,6 +172,19 @@ void initializeImuMessage()
   imuMsg->header.frame_id.size = strlen(imuMsg->header.frame_id.data);
   imuMsg->header.frame_id.capacity = 100;
 
+  imuMsg->orientation.x = quatX;
+  imuMsg->orientation.y = quatY;
+  imuMsg->orientation.z = quatZ;
+  imuMsg->orientation.w = quatW;
+
+  imuMsg->angular_velocity.x = xVelocity;
+  imuMsg->angular_velocity.y = yVelocity;
+  imuMsg->angular_velocity.z = zVelocity;
+
+  imuMsg->linear_acceleration.x = xAcc;
+  imuMsg->linear_acceleration.y = yAcc;
+  imuMsg->linear_acceleration.z = zAcc;
+
   imuMsg->orientation_covariance[0] = -1;
   imuMsg->angular_velocity_covariance[0] = -1;
   imuMsg->linear_acceleration_covariance[0] = -1;
@@ -231,13 +201,67 @@ void createJointStateMsgPublisher()
             ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, JointState),
             "/joint_states"));
 
-  const unsigned int joint_state_msg_timer_timeout = 250;
+  const unsigned int joint_state_msg_timer_timeout = 100;
   RCCHECK(rclc_timer_init_default(
             &jointStateMsgPublisherTimer,
             &support,
             RCL_MS_TO_NS(joint_state_msg_timer_timeout),
             jointStateMsgTimerCallback));
 }
+
+/**************************************************************
+   initializeJointStateMessage()
+ **************************************************************/
+void initializeJointStateMessage()
+{
+  jointStateMsg = sensor_msgs__msg__JointState__create();
+
+  jointStateMsg->header.frame_id.data = (char*)malloc(100 * sizeof(char));
+  char frameIdString[] = "joint_state";
+  memcpy(jointStateMsg->header.frame_id.data, frameIdString, strlen(frameIdString) + 1);
+  jointStateMsg->header.frame_id.size = strlen(jointStateMsg->header.frame_id.data);
+  jointStateMsg->header.frame_id.capacity = 100;
+
+  // Initialize data sizes for Left and Right Joints
+  jointStateMsg->name.size = 2;
+  jointStateMsg->velocity.size = 2;
+  jointStateMsg->position.size = 2;
+  jointStateMsg->effort.size = 2;
+
+  // Allocate memory for message data
+  jointStateMsg->name.capacity = 100;
+  jointStateMsg->name.data = (rosidl_runtime_c__String*) malloc(jointStateMsg->name.capacity * sizeof(rosidl_runtime_c__String));
+
+  jointStateMsg->velocity.capacity = 100;
+  jointStateMsg->velocity.data = (double*) malloc(jointStateMsg->velocity.capacity * sizeof(double));
+
+  jointStateMsg->position.capacity = 100;
+  jointStateMsg->position.data = (double*) malloc(jointStateMsg->position.capacity * sizeof(double));
+
+  jointStateMsg->effort.capacity = 100;
+  jointStateMsg->effort.data = (double*) malloc(jointStateMsg->effort.capacity * sizeof(double));
+
+  // Left Joint
+  jointStateMsg->name.data[0].capacity = 100;
+  jointStateMsg->name.data[0].data = (char*) malloc(jointStateMsg->name.data[0].capacity * sizeof(char));
+  strcpy(jointStateMsg->name.data[0].data, "drivewhl_l_joint");
+  jointStateMsg->name.data[0].size = strlen(jointStateMsg->name.data[0].data);
+
+  jointStateMsg->velocity.data[0] = angularVelocityLeft;
+  jointStateMsg->position.data[0] = 0.0;
+  jointStateMsg->effort.data[0] = 0.0;
+
+  // Right Joint
+  jointStateMsg->name.data[1].capacity = 100;
+  jointStateMsg->name.data[1].data = (char*) malloc(jointStateMsg->name.data[1].capacity * sizeof(char));
+  strcpy(jointStateMsg->name.data[1].data, "drivewhl_r_joint");
+  jointStateMsg->name.data[1].size = strlen(jointStateMsg->name.data[1].data);
+
+  jointStateMsg->velocity.data[1] = angularVelocityRight;
+  jointStateMsg->position.data[1] = 0.0;
+  jointStateMsg->effort.data[1] = 0.0;
+}
+
 
 /**************************************************************
    ros2HandlerSetup()
