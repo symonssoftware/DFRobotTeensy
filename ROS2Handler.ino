@@ -193,6 +193,9 @@ void jointStateMsgTimerCallback(rcl_timer_t *timer, int64_t last_call_time)
 
     jointStateMsg->velocity.data[0] = angularVelocityLeft;
     jointStateMsg->velocity.data[1] = angularVelocityRight;
+    
+    jointStateMsg->position.data[0] = positionLeft;
+    jointStateMsg->position.data[1] = positionRight;
 
     RCSOFTCHECK(rcl_publish(&jointStateMsgPublisher, jointStateMsg, NULL));
   }
@@ -261,7 +264,7 @@ void initializeJointStateMessage()
   jointStateMsg->name.data[0].size = strlen(jointStateMsg->name.data[0].data);
 
   jointStateMsg->velocity.data[0] = angularVelocityLeft;
-  jointStateMsg->position.data[0] = 0.0;
+  jointStateMsg->position.data[0] = positionLeft;
   jointStateMsg->effort.data[0] = 0.0;
 
   // Right Joint
@@ -271,7 +274,7 @@ void initializeJointStateMessage()
   jointStateMsg->name.data[1].size = strlen(jointStateMsg->name.data[1].data);
 
   jointStateMsg->velocity.data[1] = angularVelocityRight;
-  jointStateMsg->position.data[1] = 0.0;
+  jointStateMsg->position.data[1] = positionRight;
   jointStateMsg->effort.data[1] = 0.0;
 }
 

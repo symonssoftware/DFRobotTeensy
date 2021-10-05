@@ -20,7 +20,10 @@ static const int MAX_MOTOR_SPEED = 220;
 static const int MIN_MOTOR_SPEED = 0;
 static const int MOTOR_DEADBAND = 10;
 
-static const int ENC_COUNT_PER_REV = 663;
+// The interrupts counting pulses are set to "CHANGE" so 
+// we'll get to interrupts for every encoder pulse
+static const int ENC_COUNT_PER_REV = (663 * 2);
+static const float DEG_PER_ENC_PULSE = 0.54;
 
 static const float RPM_TO_RADIANS = 0.10471975512;
 
@@ -29,6 +32,9 @@ byte rightEncoderPinALast;
 
 int leftEncoderPulseCount;
 int rightEncoderPulseCount;
+
+int leftEncoderPulseCountForPosition;
+int rightEncoderPulseCountForPosition;
 
 boolean leftEncoderDirection;
 boolean rightEncoderDirection;
@@ -39,11 +45,11 @@ long encoderCalculationCurrentMillis = 0;
 
 float rpmRight = 0.0;
 float angularVelocityRight = 0.0;
-float angularVelocityRightDegrees = 0.0;
+float positionRight = 0.0;
 
 float rpmLeft = 0.0;
 float angularVelocityLeft = 0.0;
-float angularVelocityLeftDegrees = 0.0;
+float positionLeft = 0.0;
 
 /**************************************************************
    motorControlSetup()
@@ -80,15 +86,28 @@ void motorControlLoop()
 
     rpmRight = (float)(rightEncoderPulseCount * 60.0 / ENC_COUNT_PER_REV);
     angularVelocityRight = rpmRight * RPM_TO_RADIANS;   
-    //angularVelocityRightDegrees = angularVelocityRight * RAD_TO_DEG;
 
     rpmLeft = (float)(leftEncoderPulseCount * 60.0 / ENC_COUNT_PER_REV);
     angularVelocityLeft = rpmLeft * RPM_TO_RADIANS;   
-    ///angularVelocityLeftDegrees = angularVelocityLeft * RAD_TO_DEG;
 
     leftEncoderPulseCount = 0;
     rightEncoderPulseCount = 0;
   }
+
+  if (abs(rightEncoderPulseCountForPosition) > ENC_COUNT_PER_REV)
+  {
+    rightEncoderPulseCountForPosition = rightEncoderPulseCountForPosition % ENC_COUNT_PER_REV;
+  }
+
+  if (abs(leftEncoderPulseCountForPosition) > ENC_COUNT_PER_REV)
+  {
+    leftEncoderPulseCountForPosition = leftEncoderPulseCountForPosition % ENC_COUNT_PER_REV;
+  }
+
+  // The interrupt for encoder counts is set to "CHANGE" so we'll get two interrupts for
+  // every encoder "tick". Need to divide by 2 to get the correct value.
+  positionRight = ((float)rightEncoderPulseCountForPosition / 2.0) * DEG_PER_ENC_PULSE * DEG_TO_RAD;
+  positionLeft = ((float)leftEncoderPulseCountForPosition / 2.0) * DEG_PER_ENC_PULSE * DEG_TO_RAD;  
 }
 
 /**************************************************************
@@ -97,6 +116,7 @@ void motorControlLoop()
 void leftEncoderInit()
 {
   leftEncoderPulseCount = 0;
+  leftEncoderPulseCountForPosition = 0;
   leftEncoderDirection = true; //default -> Forward
   pinMode(LEFT_MOTOR_ENCODER_A_PIN, INPUT_PULLUP);
   pinMode(LEFT_MOTOR_ENCODER_B_PIN, INPUT);
@@ -109,6 +129,7 @@ void leftEncoderInit()
 void rightEncoderInit()
 {
   rightEncoderPulseCount = 0;
+  rightEncoderPulseCountForPosition = 0;
   rightEncoderDirection = true; //default -> Forward
   pinMode(RIGHT_MOTOR_ENCODER_A_PIN, INPUT_PULLUP);
   pinMode(RIGHT_MOTOR_ENCODER_B_PIN, INPUT);
@@ -140,10 +161,12 @@ void leftWheelPulse()
   if(leftEncoderDirection)
   {
     leftEncoderPulseCount--;
+    leftEncoderPulseCountForPosition--;
   }
   else  
   {
     leftEncoderPulseCount++;
+    leftEncoderPulseCountForPosition++;
   }
 }
 
@@ -171,11 +194,13 @@ void rightWheelPulse()
 
   if(rightEncoderDirection)
   {
-    rightEncoderPulseCount--;
+    rightEncoderPulseCount++;
+    rightEncoderPulseCountForPosition++;
   }
   else  
   {
-    rightEncoderPulseCount++;
+    rightEncoderPulseCount--;
+    rightEncoderPulseCountForPosition--;
   }
 }
 
@@ -268,7 +293,6 @@ void turnRight()
     digitalWrite(RIGHT_MOTOR_DIRECTION_CTRL_PIN, LOW);
   }
 }
-
 
 /**************************************************************
    handleDriveMotors()
