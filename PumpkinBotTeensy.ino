@@ -8,7 +8,7 @@ static const int ROBOT_STATE_DISABLED = 0;
 static const int ROBOT_STATE_TELEOP_ENABLED = 1;
 static const int ROBOT_STATE_AUTONOMOUS_ENABLED = 2;
 
-int robotState = ROBOT_STATE_DISABLED;
+int robotState = ROBOT_STATE_AUTONOMOUS_ENABLED;
 
 /**************************************************************
    setup()
@@ -44,12 +44,10 @@ void loop()
 
     case ROBOT_STATE_AUTONOMOUS_ENABLED:
       imuLoop();
+      motorControlLoop();
       break;
 
     default:
       stopMotors();
   }
-
-  // For now, always run motorControlLoop
-  motorControlLoop();
 }

@@ -295,9 +295,9 @@ void turnRight()
 }
 
 /**************************************************************
-   handleDriveMotors()
+   handleDriveMotorsInTeleopMode()
  **************************************************************/
-void handleDriveMotors()
+void handleDriveMotorsInTeleopMode()
 {
   float throttle = -map(radioLinkDriveY, 200, 1800, -MAX_MOTOR_SPEED, MAX_MOTOR_SPEED);
   float turn = -map(radioLinkDriveX, 200, 1800, -MAX_MOTOR_SPEED, MAX_MOTOR_SPEED);

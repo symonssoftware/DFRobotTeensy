@@ -19,6 +19,7 @@
 
 #include <sensor_msgs/msg/imu.h>
 #include <sensor_msgs/msg/joint_state.h>
+#include <geometry_msgs/msg/twist.h>
 
 #include <std_msgs/msg/header.h>
 
@@ -27,6 +28,7 @@
 #include <rosidl_runtime_c/string_functions.h>
 
 rcl_subscription_t robotStateSubscriber;
+rcl_subscription_t velocitySubscriber;
 
 rcl_publisher_t imuMsgPublisher;
 rcl_publisher_t jointStateMsgPublisher;
@@ -35,6 +37,7 @@ std_msgs__msg__Int32 robotStateMsg;
 
 sensor_msgs__msg__Imu *imuMsg;
 sensor_msgs__msg__JointState *jointStateMsg;
+geometry_msgs__msg__Twist velocityTwistMsg;
 
 rclc_executor_t executor;
 rclc_support_t support;
@@ -88,6 +91,48 @@ void robotStateSubscriptionCallback(const void * msgin)
   robotState = msg->data;
 }
 
+/**************************************************************
+   createVelocitySubscriber()
+ **************************************************************/
+void createVelocitySubscriber()
+{
+  RCCHECK(rclc_subscription_init_default(
+            &velocitySubscriber,
+            &node,
+            ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, Twist),
+            "/cmd_vel"));
+}
+
+/**************************************************************
+   velocitySubscriptionCallback()
+ **************************************************************/
+void velocitySubscriptionCallback(const void * msgin)
+{
+  if (robotState > ROBOT_STATE_DISABLED)
+  {
+    const geometry_msgs__msg__Twist * msg = (const geometry_msgs__msg__Twist *)msgin;
+
+    // msg->linear.x (range of -1.0 to 1.0)
+    // msg->angular.z (range of 3.0 to -3.0)
+
+    // Speed calculations range: -1.39 to +1.39
+    double speedRight = (((msg->angular.z * 0.26) / 2.0) + msg->linear.x);
+    double speedLeft = ((msg->linear.x * 2.0) - speedRight);
+
+    // Multiply by 1000 so we don't lose three decimal precision from float values
+    long normalizedSpeedRight = speedRight * 100.0;
+    long normalizedSpeedLeft = speedLeft * 100.0;
+
+    // Handle Right Motor
+    bool rightMotorDirection = (normalizedSpeedRight > 0);
+    moveRightMotor(rightMotorDirection, map(abs(normalizedSpeedRight), 0, 139, 0, MAX_MOTOR_SPEED));
+
+    // Handle Left Motor
+    bool leftMotorDirection = (normalizedSpeedLeft > 0);
+    moveLeftMotor(leftMotorDirection, map(abs(normalizedSpeedLeft), 0, 139, 0, MAX_MOTOR_SPEED));
+  }
+}
+
 // For some reason, without this duplicate method definition, the dumb-ass
 // Arduino compiler wouldn't not do it's job.
 void imuMsgTimerCallback(rcl_timer_t *timer, int64_t last_call_time);
@@ -134,7 +179,7 @@ void createImuDataMsgPublisher()
             ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Imu),
             "/imu/data"));
 
-  const unsigned int imu_msg_timer_timeout = 100;
+  const unsigned int imu_msg_timer_timeout = 10;
   RCCHECK(rclc_timer_init_default(
             &imuMsgPublisherTimer,
             &support,
@@ -193,7 +238,7 @@ void jointStateMsgTimerCallback(rcl_timer_t *timer, int64_t last_call_time)
 
     jointStateMsg->velocity.data[0] = angularVelocityLeft;
     jointStateMsg->velocity.data[1] = angularVelocityRight;
-    
+
     jointStateMsg->position.data[0] = positionLeft;
     jointStateMsg->position.data[1] = positionRight;
 
@@ -212,7 +257,7 @@ void createJointStateMsgPublisher()
             ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, JointState),
             "/joint_states"));
 
-  const unsigned int joint_state_msg_timer_timeout = 100;
+  const unsigned int joint_state_msg_timer_timeout = 10;
   RCCHECK(rclc_timer_init_default(
             &jointStateMsgPublisherTimer,
             &support,
@@ -228,11 +273,11 @@ void initializeJointStateMessage()
   jointStateMsg = sensor_msgs__msg__JointState__create();
 
   jointStateMsg->header.frame_id.data = (char*)malloc(100 * sizeof(char));
-  char frameIdString[] = "joints";
+  char frameIdString[] = "";
   memcpy(jointStateMsg->header.frame_id.data, frameIdString, strlen(frameIdString) + 1);
   jointStateMsg->header.frame_id.size = strlen(jointStateMsg->header.frame_id.data);
   jointStateMsg->header.frame_id.capacity = 100;
-  
+
   rosidl_runtime_c__String__Sequence__init(&jointStateMsg->name, 2);
   rosidl_runtime_c__double__Sequence__init(&jointStateMsg->velocity, 2);
   rosidl_runtime_c__double__Sequence__init(&jointStateMsg->position, 2);
@@ -299,6 +344,7 @@ void ros2HandlerSetup()
   RCCHECK(rclc_node_init_default(&node, "micro_ros_arduino_node", "", &support));
 
   createRobotStateSubscriber();
+  createVelocitySubscriber();
 
   createImuDataMsgPublisher();
   createJointStateMsgPublisher();
@@ -306,7 +352,7 @@ void ros2HandlerSetup()
   // Create Executor -- MAY NEED TO UPDATE THE MAGIC NUMBER BELOW !!!!!!
   // *** The magic number equals the number of timers plus the number of subscribers ***
   // *** Publishers don't factor into this number, I guess.                           ***
-  RCCHECK(rclc_executor_init(&executor, &support.context, 3, &allocator));
+  RCCHECK(rclc_executor_init(&executor, &support.context, 4, &allocator));
 
   initializeImuMessage();
   initializeJointStateMessage();
@@ -315,6 +361,7 @@ void ros2HandlerSetup()
   RCCHECK(rclc_executor_add_timer(&executor, &jointStateMsgPublisherTimer));
 
   RCCHECK(rclc_executor_add_subscription(&executor, &robotStateSubscriber, &robotStateMsg, &robotStateSubscriptionCallback, ON_NEW_DATA));
+  RCCHECK(rclc_executor_add_subscription(&executor, &velocitySubscriber, &velocityTwistMsg, &velocitySubscriptionCallback, ON_NEW_DATA));
 }
 
 /**************************************************************

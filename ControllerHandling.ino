@@ -81,7 +81,7 @@ void processControllerData()
       if (sBusBuffer[24] == 0x00)
       {
         processSBusBuffer();
-        handleDriveMotors();
+        handleDriveMotorsInTeleopMode();
         delay(100);
       }
       else
