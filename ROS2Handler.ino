@@ -125,11 +125,11 @@ void velocitySubscriptionCallback(const void * msgin)
 
     // Handle Right Motor
     bool rightMotorDirection = (normalizedSpeedRight > 0);
-    moveRightMotor(rightMotorDirection, map(abs(normalizedSpeedRight), 0, 139, 0, MAX_MOTOR_SPEED));
+    moveRightMotor(rightMotorDirection, map(abs(normalizedSpeedRight), 0, 139, MIN_AUTO_MOTOR_SPEED, MAX_AUTO_MOTOR_SPEED));
 
     // Handle Left Motor
     bool leftMotorDirection = (normalizedSpeedLeft > 0);
-    moveLeftMotor(leftMotorDirection, map(abs(normalizedSpeedLeft), 0, 139, 0, MAX_MOTOR_SPEED));
+    moveLeftMotor(leftMotorDirection, map(abs(normalizedSpeedLeft), 0, 139, MIN_AUTO_MOTOR_SPEED, MAX_AUTO_MOTOR_SPEED));
   }
 }
 

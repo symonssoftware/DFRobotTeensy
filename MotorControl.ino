@@ -16,7 +16,10 @@ static const int RIGHT_MOTOR_ENCODER_B_PIN = 38;
 static const int DRIVE_SPEED = 200; //255 is max;
 static const int TURN_SPEED = 200;
 
-static const int MAX_MOTOR_SPEED = 220;
+static const int MAX_AUTO_MOTOR_SPEED = 255;
+static const int MIN_AUTO_MOTOR_SPEED = 100;
+
+static const int MAX_TELEOP_MOTOR_SPEED = 220;
 static const int MIN_MOTOR_SPEED = 0;
 static const int MOTOR_DEADBAND = 10;
 
@@ -61,8 +64,8 @@ void motorControlSetup()
 
   // Need to increase the PWM frequency beyond the audible
   // range to get rid of the annoying "whine"
-  analogWriteFrequency(LEFT_MOTOR_SPEED_CTRL_PIN, 12500);
-  analogWriteFrequency(RIGHT_MOTOR_SPEED_CTRL_PIN, 12500);
+  analogWriteFrequency(LEFT_MOTOR_SPEED_CTRL_PIN, 20000);
+  analogWriteFrequency(RIGHT_MOTOR_SPEED_CTRL_PIN, 20000);
   
   pinMode(LEFT_MOTOR_DIRECTION_CTRL_PIN, OUTPUT);
   pinMode(RIGHT_MOTOR_DIRECTION_CTRL_PIN, OUTPUT);
@@ -299,20 +302,20 @@ void turnRight()
  **************************************************************/
 void handleDriveMotorsInTeleopMode()
 {
-  float throttle = -map(radioLinkDriveY, 200, 1800, -MAX_MOTOR_SPEED, MAX_MOTOR_SPEED);
-  float turn = -map(radioLinkDriveX, 200, 1800, -MAX_MOTOR_SPEED, MAX_MOTOR_SPEED);
+  float throttle = -map(radioLinkDriveY, 200, 1800, -MAX_TELEOP_MOTOR_SPEED, MAX_TELEOP_MOTOR_SPEED);
+  float turn = -map(radioLinkDriveX, 200, 1800, -MAX_TELEOP_MOTOR_SPEED, MAX_TELEOP_MOTOR_SPEED);
 
-  int tempRight = ((MAX_MOTOR_SPEED - abs(turn)) * (throttle / (float)MAX_MOTOR_SPEED)) + throttle;
-  int tempLeft = ((MAX_MOTOR_SPEED - abs(throttle)) * (turn / (float)MAX_MOTOR_SPEED)) + turn;
+  int tempRight = ((MAX_TELEOP_MOTOR_SPEED - abs(turn)) * (throttle / (float)MAX_TELEOP_MOTOR_SPEED)) + throttle;
+  int tempLeft = ((MAX_TELEOP_MOTOR_SPEED - abs(throttle)) * (turn / (float)MAX_TELEOP_MOTOR_SPEED)) + turn;
 
   int right = (tempRight + tempLeft) / 2;
   int left = (tempRight - tempLeft) / 2;
   
-  if ((left > MOTOR_DEADBAND) && (left <= MAX_MOTOR_SPEED))
+  if ((left > MOTOR_DEADBAND) && (left <= MAX_TELEOP_MOTOR_SPEED))
   {
     moveLeftMotor(true, left);
   }
-  else if ((left < -MOTOR_DEADBAND) && (left >= -MAX_MOTOR_SPEED))
+  else if ((left < -MOTOR_DEADBAND) && (left >= -MAX_TELEOP_MOTOR_SPEED))
   {
     moveLeftMotor(false, -left);
   }
@@ -321,11 +324,11 @@ void handleDriveMotorsInTeleopMode()
     moveLeftMotor(false, 0);
   }
   
-  if ((right > MOTOR_DEADBAND) && (right <= MAX_MOTOR_SPEED))
+  if ((right > MOTOR_DEADBAND) && (right <= MAX_TELEOP_MOTOR_SPEED))
   {
     moveRightMotor(true, right);
   }
-  else if ((right < -MOTOR_DEADBAND) && (right >= -MAX_MOTOR_SPEED))
+  else if ((right < -MOTOR_DEADBAND) && (right >= -MAX_TELEOP_MOTOR_SPEED))
   {
     moveRightMotor(false, -right);
   }
