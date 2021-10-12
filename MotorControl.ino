@@ -30,6 +30,8 @@ static const float DEG_PER_ENC_PULSE = 0.54;
 
 static const float RPM_TO_RADIANS = 0.10471975512;
 
+static const int ENCODER_CALC_INTERVAL = 1000; // One second intervals
+
 byte leftEncoderPinALast;
 byte rightEncoderPinALast;
 
@@ -42,7 +44,6 @@ int rightEncoderPulseCountForPosition;
 boolean leftEncoderDirection;
 boolean rightEncoderDirection;
 
-int encoderCalculationInterval = 1000; // One second intervals
 long encoderCalculationPreviousMillis = 0;
 long encoderCalculationCurrentMillis = 0;
 
@@ -83,7 +84,7 @@ void motorControlLoop()
 {
   encoderCalculationCurrentMillis = millis();
 
-  if ((encoderCalculationCurrentMillis - encoderCalculationPreviousMillis) > encoderCalculationInterval) 
+  if ((encoderCalculationCurrentMillis - encoderCalculationPreviousMillis) > ENCODER_CALC_INTERVAL) 
   {
     encoderCalculationPreviousMillis = encoderCalculationCurrentMillis;
 
