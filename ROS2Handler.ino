@@ -16,12 +16,14 @@
 
 #include <std_msgs/msg/int32.h>
 #include <std_msgs/msg/float32.h>
+#include <example_interfaces/msg/float32.h>
 
 #include <sensor_msgs/msg/imu.h>
 #include <sensor_msgs/msg/joint_state.h>
 #include <geometry_msgs/msg/twist.h>
 
 #include <std_msgs/msg/header.h>
+#include <builtin_interfaces/msg/time.h>
 
 #include <rosidl_runtime_c/string.h>
 #include <rosidl_runtime_c/primitives_sequence_functions.h>
@@ -29,11 +31,13 @@
 
 rcl_subscription_t robotStateSubscriber;
 rcl_subscription_t velocitySubscriber;
+rcl_subscription_t clockSubscriber;
 
 rcl_publisher_t imuMsgPublisher;
 rcl_publisher_t jointStateMsgPublisher;
 
 std_msgs__msg__Int32 robotStateMsg;
+builtin_interfaces__msg__Time clockMsg;
 
 sensor_msgs__msg__Imu *imuMsg;
 sensor_msgs__msg__JointState *jointStateMsg;
@@ -46,6 +50,9 @@ rcl_node_t node;
 
 rcl_timer_t imuMsgPublisherTimer;
 rcl_timer_t jointStateMsgPublisherTimer;
+
+int32_t currentClockSeconds;
+uint32_t currentClockNanoseconds;
 
 #define LED_PIN 13
 
@@ -89,6 +96,29 @@ void robotStateSubscriptionCallback(const void * msgin)
   const std_msgs__msg__Int32 *msg = (const std_msgs__msg__Int32 *)msgin;
 
   robotState = msg->data;
+}
+
+/**************************************************************
+   createClockSubscriber()
+ **************************************************************/
+void createClockSubscriber()
+{
+  RCCHECK(rclc_subscription_init_default(
+            &clockSubscriber,
+            &node,
+            ROSIDL_GET_MSG_TYPE_SUPPORT(builtin_interfaces, msg, Time),
+            "/pumpkin/clock"));
+}
+
+/**************************************************************
+   clockSubscriptionCallback()
+ **************************************************************/
+void clockSubscriptionCallback(const void * msgin)
+{
+  const builtin_interfaces__msg__Time *msg = (const builtin_interfaces__msg__Time *)msgin;
+
+  currentClockSeconds = msg->sec;
+  currentClockNanoseconds = msg->nanosec;
 }
 
 /**************************************************************
@@ -148,8 +178,8 @@ void imuMsgTimerCallback(rcl_timer_t *timer, int64_t last_call_time)
 
   if (timer != NULL)
   {
-    imuMsg->header.stamp.nanosec = tv.tv_nsec;
-    imuMsg->header.stamp.sec = tv.tv_sec;
+    imuMsg->header.stamp.nanosec = currentClockNanoseconds;
+    imuMsg->header.stamp.sec = currentClockSeconds;
 
     imuMsg->orientation.x = quatX;
     imuMsg->orientation.y = quatY;
@@ -195,7 +225,7 @@ void initializeImuMessage()
   imuMsg = sensor_msgs__msg__Imu__create();
 
   imuMsg->header.frame_id.data = (char*)malloc(100 * sizeof(char));
-  char frameIdString[] = "imu";
+  char frameIdString[] = "imu_link";
   memcpy(imuMsg->header.frame_id.data, frameIdString, strlen(frameIdString) + 1);
   imuMsg->header.frame_id.size = strlen(imuMsg->header.frame_id.data);
   imuMsg->header.frame_id.capacity = 100;
@@ -233,8 +263,8 @@ void jointStateMsgTimerCallback(rcl_timer_t *timer, int64_t last_call_time)
 
   if (timer != NULL)
   {
-    jointStateMsg->header.stamp.nanosec = tv.tv_nsec;
-    jointStateMsg->header.stamp.sec = tv.tv_sec;
+    jointStateMsg->header.stamp.nanosec = currentClockNanoseconds;
+    jointStateMsg->header.stamp.sec = currentClockSeconds;
 
     jointStateMsg->velocity.data[0] = angularVelocityLeft;
     jointStateMsg->velocity.data[1] = angularVelocityRight;
@@ -345,6 +375,7 @@ void ros2HandlerSetup()
 
   createRobotStateSubscriber();
   createVelocitySubscriber();
+  createClockSubscriber();
 
   createImuDataMsgPublisher();
   createJointStateMsgPublisher();
@@ -352,7 +383,7 @@ void ros2HandlerSetup()
   // Create Executor -- MAY NEED TO UPDATE THE MAGIC NUMBER BELOW !!!!!!
   // *** The magic number equals the number of timers plus the number of subscribers ***
   // *** Publishers don't factor into this number, I guess.                           ***
-  RCCHECK(rclc_executor_init(&executor, &support.context, 4, &allocator));
+  RCCHECK(rclc_executor_init(&executor, &support.context, 5, &allocator));
 
   initializeImuMessage();
   initializeJointStateMessage();
@@ -360,6 +391,7 @@ void ros2HandlerSetup()
   RCCHECK(rclc_executor_add_timer(&executor, &imuMsgPublisherTimer));
   RCCHECK(rclc_executor_add_timer(&executor, &jointStateMsgPublisherTimer));
 
+  RCCHECK(rclc_executor_add_subscription(&executor, &clockSubscriber, &clockMsg, &clockSubscriptionCallback, ON_NEW_DATA));
   RCCHECK(rclc_executor_add_subscription(&executor, &robotStateSubscriber, &robotStateMsg, &robotStateSubscriptionCallback, ON_NEW_DATA));
   RCCHECK(rclc_executor_add_subscription(&executor, &velocitySubscriber, &velocityTwistMsg, &velocitySubscriptionCallback, ON_NEW_DATA));
 }
