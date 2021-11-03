@@ -54,6 +54,13 @@ rcl_timer_t jointStateMsgPublisherTimer;
 int32_t currentClockSeconds;
 uint32_t currentClockNanoseconds;
 
+static const double WHEEL_BASE_METERS = 0.26;
+static const double WHEEL_RADIUS_METERS = 0.07;
+
+const unsigned long CMD_VEL_MSG_INTERVAL = 1000;
+unsigned long cmdVelMsgPreviousTime = 0;
+unsigned long currentTime;
+
 #define LED_PIN 13
 
 #define RCCHECK(fn) { rcl_ret_t temp_rc = fn; if((temp_rc != RCL_RET_OK)){errorLoop();}}
@@ -143,24 +150,37 @@ void velocitySubscriptionCallback(const void * msgin)
     const geometry_msgs__msg__Twist * msg = (const geometry_msgs__msg__Twist *)msgin;
 
     // msg->linear.x (range of -1.0 to 1.0)
-    // msg->angular.z (range of 3.0 to -3.0)
+    // msg->angular.z (range of 1.0 to -1.0)
 
-    // Speed calculations range: -1.39 to +1.39
-    double speedRight = (((msg->angular.z * 0.26) / 2.0) + msg->linear.x);
-    double speedLeft = ((msg->linear.x * 2.0) - speedRight);
+    // https://answers.ros.org/question/334022/how-to-split-cmd_vel-into-left-and-right-wheel-of-2wd-robot/
 
-    // Multiply by 1000 so we don't lose three decimal precision from float values
-    long normalizedSpeedRight = speedRight * 100.0;
-    long normalizedSpeedLeft = speedLeft * 100.0;
+    double speedLeft = ((msg->linear.x - (msg->angular.z * WHEEL_BASE_METERS / 2.0)) / WHEEL_RADIUS_METERS);
+    double speedRight = ((msg->linear.x + (msg->angular.z * WHEEL_BASE_METERS / 2.0)) / WHEEL_RADIUS_METERS);
 
     // Handle Right Motor
-    bool rightMotorDirection = (normalizedSpeedRight > 0);
-    moveRightMotor(rightMotorDirection, map(abs(normalizedSpeedRight), 0, 139, MIN_AUTO_MOTOR_SPEED, MAX_AUTO_MOTOR_SPEED));
+    bool rightMotorDirection = (speedRight > 0);
+    double calcSpeedRight = mapf(abs(speedRight), 0.0, 16.14286, MIN_AUTO_MOTOR_SPEED, MAX_AUTO_MOTOR_SPEED);
+    moveRightMotor(rightMotorDirection, calcSpeedRight);
 
     // Handle Left Motor
-    bool leftMotorDirection = (normalizedSpeedLeft > 0);
-    moveLeftMotor(leftMotorDirection, map(abs(normalizedSpeedLeft), 0, 139, MIN_AUTO_MOTOR_SPEED, MAX_AUTO_MOTOR_SPEED));
+    bool leftMotorDirection = (speedLeft > 0);
+    double calcSpeedLeft = mapf(abs(speedLeft), 0.0, 16.14286, MIN_AUTO_MOTOR_SPEED, MAX_AUTO_MOTOR_SPEED);
+    moveLeftMotor(leftMotorDirection, calcSpeedLeft);
+
+    cmdVelMsgPreviousTime = currentTime;
   }
+  else
+  {
+    stopMotors();
+  }
+}
+
+/**************************************************************
+   mapf()
+ **************************************************************/
+double mapf(double x, double in_min, double in_max, double out_min, double out_max)
+{
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
 // For some reason, without this duplicate method definition, the dumb-ass
@@ -401,9 +421,13 @@ void ros2HandlerSetup()
  **************************************************************/
 void ros2HandlerLoop()
 {
-  while (1)
+  currentTime = millis();
+
+  // If we haven't received a new CMD_VEL msg in the expected time, stop the motors
+  if (((currentTime - cmdVelMsgPreviousTime) >= CMD_VEL_MSG_INTERVAL) && (cmdVelMsgPreviousTime > 0))
   {
-    RCCHECK(rclc_executor_spin_some(&executor, RCL_MS_TO_NS(100)));
-    delay(100);
+    stopMotors();
   }
+
+  RCCHECK(rclc_executor_spin_some(&executor, RCL_MS_TO_NS(100)));
 }

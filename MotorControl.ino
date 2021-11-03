@@ -16,21 +16,21 @@ static const int RIGHT_MOTOR_ENCODER_B_PIN = 38;
 static const int DRIVE_SPEED = 200; //255 is max;
 static const int TURN_SPEED = 200;
 
-static const int MAX_AUTO_MOTOR_SPEED = 255;
-static const int MIN_AUTO_MOTOR_SPEED = 100;
+static const double MAX_AUTO_MOTOR_SPEED = 255.0;
+static const double MIN_AUTO_MOTOR_SPEED = 150.0;
 
 static const int MAX_TELEOP_MOTOR_SPEED = 220;
 static const int MIN_MOTOR_SPEED = 0;
 static const int MOTOR_DEADBAND = 10;
 
 // The interrupts counting pulses are set to "CHANGE" so 
-// we'll get to interrupts for every encoder pulse
+// we'll get two interrupts for every encoder pulse
 static const int ENC_COUNT_PER_REV = (663 * 2);
 static const float DEG_PER_ENC_PULSE = 0.54;
 
 static const float RPM_TO_RADIANS = 0.10471975512;
 
-static const int ENCODER_CALC_INTERVAL = 1000; // One second intervals
+static const int ENCODER_CALC_INTERVAL = 1000; // One hundred millisecond intervals
 
 byte leftEncoderPinALast;
 byte rightEncoderPinALast;

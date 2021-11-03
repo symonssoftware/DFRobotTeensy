@@ -2,7 +2,6 @@
    DFRobot
  **************************************************************/
 #include <Arduino.h>
-#include <TeensyThreads.h>
 
 static const int ROBOT_STATE_DISABLED = 0;
 static const int ROBOT_STATE_TELEOP_ENABLED = 1;
@@ -21,8 +20,6 @@ void setup()
   motorControlSetup();
   controllerHandlingSetup();
   imuSetup();
-
-  threads.addThread(ros2HandlerLoop);
 }
 
 /**************************************************************
@@ -35,16 +32,19 @@ void loop()
     case ROBOT_STATE_DISABLED:
       imuLoop();
       stopMotors();
+      ros2HandlerLoop();
       break;
 
     case ROBOT_STATE_TELEOP_ENABLED:
       imuLoop();
       controllerHandlingLoop();
+      ros2HandlerLoop();
       break;
 
     case ROBOT_STATE_AUTONOMOUS_ENABLED:
       imuLoop();
       motorControlLoop();
+      ros2HandlerLoop();
       break;
 
     default:
