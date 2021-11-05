@@ -30,7 +30,7 @@ static const float DEG_PER_ENC_PULSE = 0.54;
 
 static const float RPM_TO_RADIANS = 0.10471975512;
 
-static const int ENCODER_CALC_INTERVAL = 1000; // One hundred millisecond intervals
+static const int ENCODER_CALC_INTERVAL = 500;
 
 byte leftEncoderPinALast;
 byte rightEncoderPinALast;

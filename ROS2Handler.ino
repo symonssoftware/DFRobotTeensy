@@ -307,7 +307,7 @@ void createJointStateMsgPublisher()
             ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, JointState),
             "/joint_states"));
 
-  const unsigned int joint_state_msg_timer_timeout = 10;
+  const unsigned int joint_state_msg_timer_timeout = 500;
   RCCHECK(rclc_timer_init_default(
             &jointStateMsgPublisherTimer,
             &support,
