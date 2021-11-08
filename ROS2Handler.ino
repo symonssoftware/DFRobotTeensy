@@ -152,10 +152,28 @@ void velocitySubscriptionCallback(const void * msgin)
     // msg->linear.x (range of -1.0 to 1.0)
     // msg->angular.z (range of 1.0 to -1.0)
 
-    // https://answers.ros.org/question/334022/how-to-split-cmd_vel-into-left-and-right-wheel-of-2wd-robot/
+    double speedLeft = 0.0;
+    double speedRight = 0.0;
 
-    double speedLeft = ((msg->linear.x - (msg->angular.z * WHEEL_BASE_METERS / 2.0)) / WHEEL_RADIUS_METERS);
-    double speedRight = ((msg->linear.x + (msg->angular.z * WHEEL_BASE_METERS / 2.0)) / WHEEL_RADIUS_METERS);
+    // When commanded to perform a turn only, there isn't enough juice sent to the wheels
+    // with the current approach to get them to move on carpet at least.
+    if ((msg->linear.x == 0.0) && (msg->angular.z >= 0.99))
+    {
+      speedLeft = -3.0;
+      speedRight = 3.0;
+    }
+    else if ((msg->linear.x == 0.0) && (msg->angular.z <= -0.99))
+    {
+      speedLeft =  3.0;
+      speedRight = -3.0;
+    }
+    else
+    {
+      // https://answers.ros.org/question/334022/how-to-split-cmd_vel-into-left-and-right-wheel-of-2wd-robot/
+
+      speedLeft = ((msg->linear.x - (msg->angular.z * WHEEL_BASE_METERS / 2.0)) / WHEEL_RADIUS_METERS);
+      speedRight = ((msg->linear.x + (msg->angular.z * WHEEL_BASE_METERS / 2.0)) / WHEEL_RADIUS_METERS);
+    }
 
     // Handle Right Motor
     bool rightMotorDirection = (speedRight > 0);
