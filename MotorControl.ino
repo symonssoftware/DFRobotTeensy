@@ -25,8 +25,8 @@ static const int MOTOR_DEADBAND = 10;
 
 // The interrupts counting pulses are set to "CHANGE" so 
 // we'll get two interrupts for every encoder pulse
-static const int ENC_COUNT_PER_REV = (663 * 2);
-static const float DEG_PER_ENC_PULSE = 0.54;
+static const int ENC_COUNT_PER_REV = 1468;
+static const float DEG_PER_ENC_PULSE = (360.0 / ((float)ENC_COUNT_PER_REV / 2.0));
 
 static const float RPM_TO_RADIANS = 0.10471975512;
 
