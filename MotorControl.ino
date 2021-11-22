@@ -30,7 +30,7 @@ static const float DEG_PER_ENC_PULSE = (360.0 / ((float)ENC_COUNT_PER_REV / 2.0)
 
 static const float RPM_TO_RADIANS = 0.10471975512;
 
-static const int ENCODER_CALC_INTERVAL = 500;
+static const int ENCODER_CALC_INTERVAL_MICROS = 500000;
 
 byte leftEncoderPinALast;
 byte rightEncoderPinALast;
@@ -44,8 +44,8 @@ int rightEncoderPulseCountForPosition;
 boolean leftEncoderDirection;
 boolean rightEncoderDirection;
 
-long encoderCalculationPreviousMillis = 0;
-long encoderCalculationCurrentMillis = 0;
+long encoderCalculationPreviousMicros = 0;
+long encoderCalculationCurrentMicros = 0;
 
 float rpmRight = 0.0;
 float angularVelocityRight = 0.0;
@@ -82,16 +82,16 @@ void motorControlSetup()
  **************************************************************/
 void motorControlLoop()
 {
-  encoderCalculationCurrentMillis = millis();
+  encoderCalculationCurrentMicros = micros();
 
-  if ((encoderCalculationCurrentMillis - encoderCalculationPreviousMillis) > ENCODER_CALC_INTERVAL) 
+  if ((encoderCalculationCurrentMicros - encoderCalculationPreviousMicros) > ENCODER_CALC_INTERVAL_MICROS) 
   {
-    encoderCalculationPreviousMillis = encoderCalculationCurrentMillis;
+    encoderCalculationPreviousMicros = encoderCalculationCurrentMicros;
 
-    rpmRight = (float)(rightEncoderPulseCount * 60.0 / ENC_COUNT_PER_REV);
+    rpmRight = (float)(rightEncoderPulseCount * ((60.0 * (1000000.0 / (float)ENCODER_CALC_INTERVAL_MICROS))) / (float)ENC_COUNT_PER_REV);
     angularVelocityRight = rpmRight * RPM_TO_RADIANS;   
 
-    rpmLeft = (float)(leftEncoderPulseCount * 60.0 / ENC_COUNT_PER_REV);
+    rpmLeft = (float)(leftEncoderPulseCount * ((60.0 * (1000000.0 / (float)ENCODER_CALC_INTERVAL_MICROS))) / (float)ENC_COUNT_PER_REV);
     angularVelocityLeft = rpmLeft * RPM_TO_RADIANS;   
 
     leftEncoderPulseCount = 0;
