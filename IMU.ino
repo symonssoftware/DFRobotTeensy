@@ -6,7 +6,7 @@
 
 const float DEG2RAD = PI / 180.0f;
 
-const unsigned long IMU_EVENT_INTERVAL = 100;
+const unsigned long IMU_EVENT_INTERVAL = 30;
 unsigned long imuPreviousTime = 0;
 
 float xAxis = 0.0;

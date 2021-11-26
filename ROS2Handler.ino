@@ -247,7 +247,7 @@ void createImuDataMsgPublisher()
             ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Imu),
             "/imu/data"));
 
-  const unsigned int imu_msg_timer_timeout = 100;
+  const unsigned int imu_msg_timer_timeout = 30;
   RCCHECK(rclc_timer_init_default(
             &imuMsgPublisherTimer,
             &support,
@@ -325,7 +325,7 @@ void createJointStateMsgPublisher()
             ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, JointState),
             "/joint_states"));
 
-  const unsigned int joint_state_msg_timer_timeout = 500;
+  const unsigned int joint_state_msg_timer_timeout = 30;
   RCCHECK(rclc_timer_init_default(
             &jointStateMsgPublisherTimer,
             &support,
