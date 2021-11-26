@@ -214,45 +214,23 @@ void imuMsgTimerCallback(rcl_timer_t *timer, int64_t last_call_time)
   struct timespec tv = {0};
   clock_gettime(0, &tv);
 
-  bool useENU = true;
-
   if (timer != NULL)
   {
     imuMsg->header.stamp.nanosec = currentClockNanoseconds;
     imuMsg->header.stamp.sec = currentClockSeconds;
 
-    if (useENU)
-    {
-      // Swap X and Y and negate Z
-      
-      imuMsg->orientation.x = quatY;
-      imuMsg->orientation.y = quatX;
-      imuMsg->orientation.z = -quatZ;
-      imuMsg->orientation.w = quatW;
-  
-      imuMsg->angular_velocity.x = yVelocity;
-      imuMsg->angular_velocity.y = xVelocity;
-      imuMsg->angular_velocity.z = -zVelocity;
-  
-      imuMsg->linear_acceleration.x = yAcc;
-      imuMsg->linear_acceleration.y = xAcc;
-      imuMsg->linear_acceleration.z = -zAcc;
-    }
-    else
-    {
-      imuMsg->orientation.x = quatX;
-      imuMsg->orientation.y = quatY;
-      imuMsg->orientation.z = quatZ;
-      imuMsg->orientation.w = quatW;
-  
-      imuMsg->angular_velocity.x = xVelocity;
-      imuMsg->angular_velocity.y = yVelocity;
-      imuMsg->angular_velocity.z = zVelocity;
-  
-      imuMsg->linear_acceleration.x = xAcc;
-      imuMsg->linear_acceleration.y = yAcc;
-      imuMsg->linear_acceleration.z = zAcc;
-     }
+    imuMsg->orientation.x = quatX;
+    imuMsg->orientation.y = quatY;
+    imuMsg->orientation.z = quatZ;
+    imuMsg->orientation.w = quatW;
+
+    imuMsg->angular_velocity.x = xVelocity;
+    imuMsg->angular_velocity.y = yVelocity;
+    imuMsg->angular_velocity.z = zVelocity;
+
+    imuMsg->linear_acceleration.x = xAcc;
+    imuMsg->linear_acceleration.y = yAcc;
+    imuMsg->linear_acceleration.z = zAcc;
 
     RCSOFTCHECK(rcl_publish(&imuMsgPublisher, imuMsg, NULL));
   }
@@ -303,9 +281,9 @@ void initializeImuMessage()
   imuMsg->linear_acceleration.y = yAcc;
   imuMsg->linear_acceleration.z = zAcc;
 
-  imuMsg->orientation_covariance[0] = -1;
-  imuMsg->angular_velocity_covariance[0] = -1;
-  imuMsg->linear_acceleration_covariance[0] = -1;
+  //imuMsg->orientation_covariance[0] = -1;
+  //imuMsg->angular_velocity_covariance[0] = -1;
+  //imuMsg->linear_acceleration_covariance[0] = -1;
 }
 
 // For some reason, without this duplicate method definition, the dumb-ass
