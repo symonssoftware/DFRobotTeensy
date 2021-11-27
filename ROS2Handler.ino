@@ -159,13 +159,13 @@ void velocitySubscriptionCallback(const void * msgin)
     // with the current approach to get them to move on carpet at least.
     if ((msg->linear.x == 0.0) && (msg->angular.z >= 0.0))
     {
-      speedLeft = -3.0;
-      speedRight = 3.0;
+      speedLeft = -1.5;
+      speedRight = 1.5;
     }
     else if ((msg->linear.x == 0.0) && (msg->angular.z <= -0.0))
     {
-      speedLeft =  3.0;
-      speedRight = -3.0;
+      speedLeft =  1.5;
+      speedRight = -1.5;
     }
     else
     {
