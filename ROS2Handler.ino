@@ -57,6 +57,8 @@ uint32_t currentClockNanoseconds;
 static const double WHEEL_BASE_METERS = 0.26;
 static const double WHEEL_RADIUS_METERS = 0.07;
 
+static const double TURN_ONLY_SPEED = 1.75;
+
 const unsigned long CMD_VEL_MSG_INTERVAL = 1000;
 unsigned long cmdVelMsgPreviousTime = 0;
 unsigned long currentTime;
@@ -159,13 +161,13 @@ void velocitySubscriptionCallback(const void * msgin)
     // with the current approach to get them to move on carpet at least.
     if ((msg->linear.x == 0.0) && (msg->angular.z >= 0.0))
     {
-      speedLeft = -1.5;
-      speedRight = 1.5;
+      speedLeft = -TURN_ONLY_SPEED;
+      speedRight = TURN_ONLY_SPEED;
     }
     else if ((msg->linear.x == 0.0) && (msg->angular.z <= -0.0))
     {
-      speedLeft =  1.5;
-      speedRight = -1.5;
+      speedLeft = TURN_ONLY_SPEED;
+      speedRight = -TURN_ONLY_SPEED;
     }
     else
     {
