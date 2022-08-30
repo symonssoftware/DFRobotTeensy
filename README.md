@@ -1,2 +1,2 @@
-# DFRobotTeensy
- Teensy code for the DFRobot
+# PumpkinBotTeensy
+ Teensy code for the PumpkinBot
