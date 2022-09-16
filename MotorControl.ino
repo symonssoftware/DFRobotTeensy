@@ -14,10 +14,10 @@ static const int RIGHT_MOTOR_ENCODER_A_PIN = 37;
 static const int RIGHT_MOTOR_ENCODER_B_PIN = 38;      
 
 static const int DRIVE_SPEED = 200; //255 is max;
-static const int TURN_SPEED = 200;
+static const int TURN_SPEED = 225; //Increased to 225 from 200 so PumpkinBot will run on carpet in auto;
 
 static const double MAX_AUTO_MOTOR_SPEED = 255.0;
-static const double MIN_AUTO_MOTOR_SPEED = 150.0;
+static const double MIN_AUTO_MOTOR_SPEED = 175.0; //150.0;
 
 static const int MAX_TELEOP_MOTOR_SPEED = 220;
 static const int MIN_MOTOR_SPEED = 0;
